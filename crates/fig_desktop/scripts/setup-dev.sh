@@ -1,18 +1,18 @@
 #!/bin/bash
-# Amazon Q Desktop 開発環境自動セットアップスクリプト
+# Amazon Q Desktop Development Environment Automatic Setup Script
 
 set -e
 
-echo "🚀 Amazon Q Desktop 開発環境のセットアップを開始します..."
+echo "🚀 Starting Amazon Q Desktop development environment setup..."
 
-# カラー出力用の定義
+# Color output definitions
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# ログ関数
+# Log functions
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"
 }
@@ -29,172 +29,172 @@ log_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# 前提条件のチェック
+# Check prerequisites
 check_prerequisites() {
-    log_info "前提条件をチェックしています..."
+    log_info "Checking prerequisites..."
     
-    # macOSかどうかチェック
+    # Check if macOS
     if [[ "$OSTYPE" != "darwin"* ]]; then
-        log_error "このスクリプトはmacOS専用です"
+        log_error "This script is for macOS only"
         exit 1
     fi
     
-    # Homebrewのチェック
+    # Check Homebrew
     if ! command -v brew &> /dev/null; then
-        log_warning "Homebrewがインストールされていません。インストールしますか？ (y/n)"
+        log_warning "Homebrew is not installed. Would you like to install it? (y/n)"
         read -r response
         if [[ "$response" =~ ^[Yy]$ ]]; then
             /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
         else
-            log_error "Homebrewが必要です"
+            log_error "Homebrew is required"
             exit 1
         fi
     fi
     
-    log_success "前提条件のチェック完了"
+    log_success "Prerequisites check completed"
 }
 
-# Xcode Command Line Tools のインストール
+# Install Xcode Command Line Tools
 install_xcode_tools() {
-    log_info "Xcode Command Line Tools をチェックしています..."
+    log_info "Checking Xcode Command Line Tools..."
     
     if ! xcode-select -p &> /dev/null; then
-        log_info "Xcode Command Line Tools をインストールしています..."
+        log_info "Installing Xcode Command Line Tools..."
         xcode-select --install
-        log_warning "Xcode Command Line Tools のインストールが完了したら、このスクリプトを再実行してください"
+        log_warning "Please re-run this script after Xcode Command Line Tools installation is complete"
         exit 0
     fi
     
-    log_success "Xcode Command Line Tools は既にインストールされています"
+    log_success "Xcode Command Line Tools are already installed"
 }
 
-# Rust環境のセットアップ
+# Setup Rust environment
 setup_rust() {
-    log_info "Rust環境をセットアップしています..."
+    log_info "Setting up Rust environment..."
     
-    # Rustupのインストール
+    # Install Rustup
     if ! command -v rustup &> /dev/null; then
-        log_info "Rustup をインストールしています..."
+        log_info "Installing Rustup..."
         curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
         source ~/.cargo/env
     fi
     
-    # 必要なツールチェーンのインストール
-    log_info "Rust 1.87.0 をインストールしています..."
+    # Install required toolchain
+    log_info "Installing Rust 1.87.0..."
     rustup install 1.87.0
     rustup default 1.87.0
     
-    # コンポーネントの追加
+    # Add components
     rustup component add rustfmt clippy
     
-    # ターゲットの追加
+    # Add targets
     rustup target add x86_64-apple-darwin
     rustup target add aarch64-apple-darwin
     
-    log_success "Rust環境のセットアップ完了"
+    log_success "Rust environment setup completed"
 }
 
-# Tauri CLI のインストール
+# Install Tauri CLI
 install_tauri_cli() {
-    log_info "Tauri CLI をインストールしています..."
+    log_info "Installing Tauri CLI..."
     
     if ! command -v cargo-tauri &> /dev/null; then
         cargo install tauri-cli@1.6.0 --locked
     else
-        log_info "Tauri CLI は既にインストールされています"
+        log_info "Tauri CLI is already installed"
     fi
     
-    log_success "Tauri CLI のインストール完了"
+    log_success "Tauri CLI installation completed"
 }
 
-# Node.js環境のセットアップ
+# Setup Node.js environment
 setup_nodejs() {
-    log_info "Node.js環境をセットアップしています..."
+    log_info "Setting up Node.js environment..."
     
-    # Node.js 22のインストール
+    # Install Node.js 22
     if ! command -v node &> /dev/null || [[ $(node --version) != v22* ]]; then
-        log_info "Node.js 22 をインストールしています..."
+        log_info "Installing Node.js 22..."
         brew install node@22
         brew link node@22 --force
     fi
     
-    # バージョン確認
+    # Check version
     NODE_VERSION=$(node --version)
-    log_success "Node.js ${NODE_VERSION} がインストールされています"
+    log_success "Node.js ${NODE_VERSION} is installed"
 }
 
-# Python環境のセットアップ
+# Setup Python environment
 setup_python() {
-    log_info "Python環境をセットアップしています..."
+    log_info "Setting up Python environment..."
     
-    # Python 3.11のインストール
+    # Install Python 3.11
     if ! command -v python3.11 &> /dev/null; then
-        log_info "Python 3.11 をインストールしています..."
+        log_info "Installing Python 3.11..."
         brew install python@3.11
     fi
     
-    # 仮想環境の作成
+    # Create virtual environment
     if [[ ! -d "../../.venv" ]]; then
-        log_info "Python仮想環境を作成しています..."
+        log_info "Creating Python virtual environment..."
         cd ../..
         python3.11 -m venv .venv
         cd crates/fig_desktop
     fi
     
-    log_success "Python環境のセットアップ完了"
+    log_success "Python environment setup completed"
 }
 
-# 依存関係のインストール
+# Install dependencies
 install_dependencies() {
-    log_info "プロジェクト依存関係をインストールしています..."
+    log_info "Installing project dependencies..."
     
-    # Python仮想環境のアクティベート
+    # Activate Python virtual environment
     cd ../..
     source .venv/bin/activate
     
-    # Python依存関係のインストール
-    if [[ -f "build-scripts/requirements.txt" ]]; then
-        pip install -r build-scripts/requirements.txt
+    # Install Python dependencies
+    if [[ -f "scripts/requirements.txt" ]]; then
+        pip install -r scripts/requirements.txt
     fi
     
-    # Rust依存関係のビルド
-    log_info "Rust依存関係をビルドしています（初回は時間がかかります）..."
+    # Build Rust dependencies
+    log_info "Building Rust dependencies (this may take a while on first run)..."
     cargo build -p fig_desktop
     
     cd crates/fig_desktop
-    log_success "依存関係のインストール完了"
+    log_success "Dependencies installation completed"
 }
 
-# 開発用ツールのインストール
+# Install development tools
 install_dev_tools() {
-    log_info "開発用ツールをインストールしています..."
+    log_info "Installing development tools..."
     
-    # cargo-watch のインストール
+    # Install cargo-watch
     if ! command -v cargo-watch &> /dev/null; then
         cargo install cargo-watch
     fi
     
-    log_success "開発用ツールのインストール完了"
+    log_success "Development tools installation completed"
 }
 
-# 環境変数の設定
+# Setup environment variables
 setup_environment() {
-    log_info "環境変数を設定しています..."
+    log_info "Setting up environment variables..."
     
-    # .envファイルの作成
+    # Create .env file
     cat > .env << EOF
-# Amazon Q Desktop 開発環境設定
+# Amazon Q Desktop Development Environment Configuration
 RUST_LOG=debug
 TAURI_DEBUG=true
 DISABLE_SIGNING=true
 EOF
     
-    log_success "環境変数の設定完了"
+    log_success "Environment variables setup completed"
 }
 
-# 検証の実行
+# Run verification
 run_verification() {
-    log_info "セットアップの検証を実行しています..."
+    log_info "Running setup verification..."
     
     if [[ -f "verify_setup.py" ]]; then
         cd ../..
@@ -202,33 +202,33 @@ run_verification() {
         cd crates/fig_desktop
         python3 verify_setup.py
     else
-        log_warning "検証スクリプトが見つかりません"
+        log_warning "Verification script not found"
     fi
 }
 
-# 使用方法の表示
+# Show usage instructions
 show_usage() {
     echo ""
-    log_success "🎉 セットアップが完了しました！"
+    log_success "🎉 Setup completed!"
     echo ""
-    echo "次のコマンドで開発を開始できます："
+    echo "You can start development with the following commands:"
     echo ""
-    echo "  # 開発サーバーの起動"
+    echo "  # Start development server"
     echo "  cargo tauri dev"
     echo ""
-    echo "  # テストの実行"
+    echo "  # Run tests"
     echo "  cargo test -p fig_desktop"
     echo ""
-    echo "  # リントの実行"
+    echo "  # Run linting"
     echo "  cargo clippy -p fig_desktop"
     echo ""
-    echo "  # フォーマットの実行"
+    echo "  # Format code"
     echo "  cargo fmt"
     echo ""
-    echo "詳細な開発ガイドは DEVELOPMENT_SETUP.md を参照してください。"
+    echo "For detailed development guide, see DEVELOPMENT_SETUP.md"
 }
 
-# メイン実行
+# Main execution
 main() {
     check_prerequisites
     install_xcode_tools
@@ -243,5 +243,5 @@ main() {
     show_usage
 }
 
-# スクリプトの実行
+# Execute script
 main "$@"

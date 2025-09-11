@@ -1,61 +1,61 @@
-/// Tauriコマンドモジュール
+/// Tauri command module
 /// 
-/// このモジュールは既存のchat-cli機能をGUIから利用するための
-/// Tauriコマンドを提供します。
+/// This module provides Tauri commands for utilizing existing chat-cli
+/// functionality from the GUI.
 
 pub mod auth;
 pub mod chat;
 pub mod file_ops;
 pub mod settings;
 
-// 共通のエラー型とレスポンス型
+// Common error types and response types
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-/// GUI操作で発生するエラー
+/// Errors that occur during GUI operations
 #[derive(Error, Debug, Serialize)]
 pub enum GuiError {
-    #[error("CLI操作が失敗しました: {0}")]
+    #[error("CLI operation failed: {0}")]
     CliError(String),
     
-    #[error("認証エラー: {0}")]
+    #[error("Authentication error: {0}")]
     AuthError(String),
     
-    #[error("ファイル操作エラー: {0}")]
+    #[error("File operation error: {0}")]
     FileError(String),
     
-    #[error("ネットワークエラー: {0}")]
+    #[error("Network error: {0}")]
     NetworkError(String),
     
-    #[error("設定エラー: {0}")]
+    #[error("Configuration error: {0}")]
     ConfigError(String),
     
-    #[error("内部エラー: {0}")]
+    #[error("Internal error: {0}")]
     InternalError(String),
 }
 
-/// チャット応答
+/// Chat response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatResponse {
-    /// 会話ID
+    /// Conversation ID
     pub conversation_id: String,
-    /// 応答メッセージ
+    /// Response message
     pub message: String,
-    /// 処理時間（ミリ秒）
+    /// Processing time in milliseconds
     pub processing_time_ms: u64,
-    /// 使用されたモデル
+    /// Model used
     pub model: Option<String>,
 }
 
-/// ファイル読み込み応答
+/// File read response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileContent {
-    /// ファイルパス
+    /// File path
     pub path: String,
-    /// ファイル内容
+    /// File content
     pub content: String,
-    /// ファイルサイズ（バイト）
+    /// File size in bytes
     pub size: u64,
-    /// MIME タイプ
+    /// MIME type
     pub mime_type: Option<String>,
 }

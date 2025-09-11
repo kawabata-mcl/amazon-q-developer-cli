@@ -3,21 +3,21 @@ use std::collections::HashMap;
 use time::OffsetDateTime;
 use uuid::Uuid;
 
-/// アプリケーション全体の状態を管理する構造体
+/// Struct that manages the overall application state
 #[derive(Debug, Clone)]
 pub struct AppState {
-    /// 現在の認証状態
+    /// Current authentication status
     pub auth_status: AuthStatus,
-    /// アクティブな会話のID
+    /// Active conversation ID
     pub current_conversation_id: Option<String>,
-    /// 会話履歴
+    /// Conversation history
     pub conversations: HashMap<String, GuiConversationState>,
-    /// アプリケーション設定
+    /// Application settings
     pub settings: AppSettings,
 }
 
 impl AppState {
-    /// 新しいAppStateインスタンスを作成
+    /// Create a new AppState instance
     pub fn new() -> Self {
         Self {
             auth_status: AuthStatus::NotAuthenticated,
@@ -27,12 +27,12 @@ impl AppState {
         }
     }
 
-    /// 新しい会話を開始
+    /// Start a new conversation
     pub fn start_new_conversation(&mut self) -> String {
         let conversation_id = Uuid::new_v4().to_string();
         let conversation = GuiConversationState {
             id: conversation_id.clone(),
-            title: "新しい会話".to_string(),
+            title: "New Conversation".to_string(),
             messages: Vec::new(),
             agent: None,
             model: None,
@@ -46,7 +46,7 @@ impl AppState {
         conversation_id
     }
 
-    /// 会話にメッセージを追加
+    /// Add a message to a conversation
     pub fn add_message_to_conversation(&mut self, conversation_id: &str, message: GuiMessage) {
         if let Some(conversation) = self.conversations.get_mut(conversation_id) {
             conversation.messages.push(message);
@@ -61,120 +61,120 @@ impl Default for AppState {
     }
 }
 
-/// 認証状態を表す列挙型
+/// Enum representing authentication status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum AuthStatus {
-    /// 未認証
+    /// Not authenticated
     NotAuthenticated,
-    /// 認証中
+    /// Authentication in progress
     Authenticating,
-    /// 認証済み
+    /// Successfully authenticated
     Authenticated {
-        /// ユーザー名
+        /// Username
         username: String,
-        /// 認証プロバイダー
+        /// Authentication provider
         provider: String,
     },
-    /// 認証エラー
+    /// Authentication error
     Error {
-        /// エラーメッセージ
+        /// Error message
         message: String,
     },
 }
 
-/// GUI用の会話状態
+/// GUI conversation state
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiConversationState {
-    /// 会話ID
+    /// Conversation ID
     pub id: String,
-    /// 会話タイトル
+    /// Conversation title
     pub title: String,
-    /// メッセージリスト
+    /// Message list
     pub messages: Vec<GuiMessage>,
-    /// 使用中のエージェント
+    /// Agent in use
     pub agent: Option<String>,
-    /// 使用中のモデル
+    /// Model in use
     pub model: Option<String>,
-    /// 作成日時
+    /// Creation timestamp
     #[serde(with = "time::serde::rfc3339")]
     pub created_at: OffsetDateTime,
-    /// 更新日時
+    /// Last updated timestamp
     #[serde(with = "time::serde::rfc3339")]
     pub updated_at: OffsetDateTime,
 }
 
-/// GUI用のメッセージ
+/// GUI message
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiMessage {
-    /// メッセージID
+    /// Message ID
     pub id: String,
-    /// メッセージの役割
+    /// Message role
     pub role: MessageRole,
-    /// メッセージ内容
+    /// Message content
     pub content: String,
-    /// タイムスタンプ
+    /// Timestamp
     #[serde(with = "time::serde::rfc3339")]
     pub timestamp: OffsetDateTime,
-    /// ツール使用情報
+    /// Tool usage information
     pub tool_uses: Vec<GuiToolUse>,
-    /// メタデータ
+    /// Metadata
     pub metadata: Option<MessageMetadata>,
 }
 
-/// メッセージの役割
+/// Message role
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MessageRole {
-    /// ユーザーメッセージ
+    /// User message
     User,
-    /// アシスタントメッセージ
+    /// Assistant message
     Assistant,
-    /// システムメッセージ
+    /// System message
     System,
 }
 
-/// GUI用のツール使用情報
+/// GUI tool usage information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GuiToolUse {
-    /// ツール名
+    /// Tool name
     pub tool_name: String,
-    /// 入力パラメータ
+    /// Input parameters
     pub input: serde_json::Value,
-    /// 出力結果
+    /// Output result
     pub output: Option<serde_json::Value>,
-    /// 実行状態
+    /// Execution status
     pub status: ToolUseStatus,
 }
 
-/// ツール使用の状態
+/// Tool usage status
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ToolUseStatus {
-    /// 実行中
+    /// Running
     Running,
-    /// 成功
+    /// Success
     Success,
-    /// エラー
+    /// Error
     Error { message: String },
 }
 
-/// メッセージのメタデータ
+/// Message metadata
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageMetadata {
-    /// トークン数
+    /// Token count
     pub token_count: Option<u32>,
-    /// 処理時間（ミリ秒）
+    /// Processing time in milliseconds
     pub processing_time_ms: Option<u64>,
-    /// モデル情報
+    /// Model information
     pub model_info: Option<String>,
 }
 
-/// アプリケーション設定
+/// Application settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
-    /// ウィンドウ設定
+    /// Window settings
     pub window_settings: WindowSettings,
-    /// チャット設定
+    /// Chat settings
     pub chat_settings: ChatSettings,
-    /// 外観設定
+    /// Appearance settings
     pub appearance: AppearanceSettings,
 }
 
@@ -188,18 +188,18 @@ impl Default for AppSettings {
     }
 }
 
-/// ウィンドウ設定
+/// Window settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WindowSettings {
-    /// ウィンドウ幅
+    /// Window width
     pub width: u32,
-    /// ウィンドウ高さ
+    /// Window height
     pub height: u32,
-    /// X座標
+    /// X coordinate
     pub x: Option<i32>,
-    /// Y座標
+    /// Y coordinate
     pub y: Option<i32>,
-    /// 最大化状態
+    /// Maximized state
     pub maximized: bool,
 }
 
@@ -215,16 +215,16 @@ impl Default for WindowSettings {
     }
 }
 
-/// チャット設定
+/// Chat settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChatSettings {
-    /// デフォルトモデル
+    /// Default model
     pub default_model: Option<String>,
-    /// デフォルトエージェント
+    /// Default agent
     pub default_agent: Option<String>,
-    /// 自動保存設定
+    /// Auto-save setting
     pub auto_save: bool,
-    /// 最大履歴数
+    /// Maximum history count
     pub max_history_count: u32,
 }
 
@@ -239,14 +239,14 @@ impl Default for ChatSettings {
     }
 }
 
-/// 外観設定
+/// Appearance settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppearanceSettings {
-    /// テーマ
+    /// Theme
     pub theme: Theme,
-    /// フォントサイズ
+    /// Font size
     pub font_size: u32,
-    /// フォントファミリー
+    /// Font family
     pub font_family: String,
 }
 
@@ -260,13 +260,13 @@ impl Default for AppearanceSettings {
     }
 }
 
-/// テーマ設定
+/// Theme settings
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Theme {
-    /// ライトテーマ
+    /// Light theme
     Light,
-    /// ダークテーマ
+    /// Dark theme
     Dark,
-    /// システム設定に従う
+    /// Follow system settings
     Auto,
 }

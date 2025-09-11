@@ -1,19 +1,19 @@
-/// 既存のCLI機能とGUIを橋渡しするモジュール
+/// Module that bridges existing CLI functionality with GUI
 
 use serde::{Deserialize, Serialize};
 use tracing::{info, error};
 
-/// CLI bridgeの実装
+/// CLI bridge implementation
 pub struct CliBridge;
 
-/// 認証情報
+/// Authentication information
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthInfo {
     pub username: String,
     pub provider: String,
 }
 
-/// チャット応答
+/// Chat response
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliChatResponse {
     pub content: String,
@@ -23,50 +23,50 @@ pub struct CliChatResponse {
 }
 
 impl CliBridge {
-    /// ログイン処理を実行
+    /// Execute login process
     pub async fn execute_login() -> Result<AuthInfo, Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeでログイン処理を実行します");
+        info!("Executing login process via CLI bridge");
         
-        // TODO: 実際のchat-cliの認証機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli authentication functionality
+        // Currently mock implementation
         
-        // 模擬的な認証処理
+        // Mock authentication process
         tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
         
-        // 成功時のモックレスポンス
+        // Mock success response
         Ok(AuthInfo {
             username: "test_user".to_string(),
             provider: "AWS SSO".to_string(),
         })
     }
     
-    /// ログアウト処理を実行
+    /// Execute logout process
     pub async fn execute_logout() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeでログアウト処理を実行します");
+        info!("Executing logout process via CLI bridge");
         
-        // TODO: 実際のchat-cliのログアウト機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli logout functionality
+        // Currently mock implementation
         
-        // 模擬的なログアウト処理
+        // Mock logout process
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         
         Ok(())
     }
     
-    /// チャットメッセージを送信
+    /// Send chat message
     pub async fn send_chat_message(
         message: &str,
     ) -> Result<CliChatResponse, Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeでチャットメッセージを送信します: {}", message);
+        info!("Sending chat message via CLI bridge: {}", message);
         
-        // TODO: 実際のchat-cliのチャット機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli chat functionality
+        // Currently mock implementation
         
-        // 模擬的なチャット処理
+        // Mock chat processing
         tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;
         
-        // 簡単なエコー応答
-        let response_content = format!("Amazon Q: あなたのメッセージ「{}」を受信しました。これはテスト応答です。", message);
+        // Simple echo response
+        let response_content = format!("Amazon Q: I received your message \"{}\". This is a test response.", message);
         
         Ok(CliChatResponse {
             content: response_content,
@@ -76,29 +76,29 @@ impl CliBridge {
         })
     }
     
-    /// 認証状態を確認
+    /// Check authentication status
     pub async fn check_auth_status() -> Result<Option<AuthInfo>, Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeで認証状態を確認します");
+        info!("Checking authentication status via CLI bridge");
         
-        // TODO: 実際のchat-cliの認証状態確認機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli authentication status check functionality
+        // Currently mock implementation
         
-        // 模擬的な認証状態確認
+        // Mock authentication status check
         tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         
-        // 認証済みの状態を返す（テスト用）
+        // Return authenticated status (for testing)
         Ok(Some(AuthInfo {
             username: "test_user".to_string(),
             provider: "AWS SSO".to_string(),
         }))
     }
     
-    /// 利用可能なモデル一覧を取得
+    /// Get available models list
     pub async fn get_available_models() -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeで利用可能なモデル一覧を取得します");
+        info!("Getting available models list via CLI bridge");
         
-        // TODO: 実際のchat-cliのモデル一覧取得機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli model list functionality
+        // Currently mock implementation
         
         Ok(vec![
             "claude-3-sonnet".to_string(),
@@ -108,12 +108,12 @@ impl CliBridge {
         ])
     }
     
-    /// 設定を読み込み
+    /// Load CLI configuration
     pub async fn load_cli_config() -> Result<serde_json::Value, Box<dyn std::error::Error + Send + Sync>> {
-        info!("CLI bridgeでCLI設定を読み込みます");
+        info!("Loading CLI configuration via CLI bridge");
         
-        // TODO: 実際のchat-cliの設定読み込み機能を呼び出す
-        // 現在はモックの実装
+        // TODO: Call actual chat-cli configuration loading functionality
+        // Currently mock implementation
         
         let mock_config = serde_json::json!({
             "default_model": "claude-3-sonnet",
@@ -125,18 +125,18 @@ impl CliBridge {
     }
 }
 
-/// CLI bridgeのエラー型
+/// CLI bridge error types
 #[derive(Debug, thiserror::Error)]
 pub enum CliBridgeError {
-    #[error("認証エラー: {0}")]
+    #[error("Authentication error: {0}")]
     AuthenticationError(String),
     
-    #[error("ネットワークエラー: {0}")]
+    #[error("Network error: {0}")]
     NetworkError(String),
     
-    #[error("設定エラー: {0}")]
+    #[error("Configuration error: {0}")]
     ConfigError(String),
     
-    #[error("内部エラー: {0}")]
+    #[error("Internal error: {0}")]
     InternalError(String),
 }

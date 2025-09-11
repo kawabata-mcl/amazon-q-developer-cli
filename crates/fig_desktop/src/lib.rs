@@ -1,12 +1,12 @@
 /// Amazon Q Desktop Library
 /// 
-/// このライブラリは、Amazon Q Developer CLIのGUI機能を提供します。
+/// This library provides GUI functionality for Amazon Q Developer CLI.
 
 pub mod commands;
 pub mod state;
 pub mod utils;
 
-// 公開API
+// Public API
 pub use state::{AppState, AuthStatus, GuiConversationState, GuiMessage};
 pub use commands::{GuiError, ChatResponse, FileContent};
 

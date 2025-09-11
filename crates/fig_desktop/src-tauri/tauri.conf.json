@@ -74,7 +74,7 @@
       ],
       "category": "DeveloperTool",
       "shortDescription": "Amazon Q Developer Desktop Application",
-      "longDescription": "Amazon Q Developer CLIのmacOS向けGUIアプリケーション。直感的なインターフェースでAmazon Q Developerの機能を利用できます。",
+      "longDescription": "macOS GUI application for Amazon Q Developer CLI. Provides intuitive interface to access Amazon Q Developer functionality.",
       "macOS": {
         "frameworks": [],
         "minimumSystemVersion": "10.15",

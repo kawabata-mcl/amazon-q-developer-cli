@@ -1,8 +1,8 @@
-# Amazon Q Desktop クイックスタート
+# Amazon Q Desktop Quick Start
 
-## 🚀 最速セットアップ（5分）
+## 🚀 Fastest Setup (5 minutes)
 
-### 1. 自動セットアップスクリプトの実行
+### 1. Run Automatic Setup Script
 
 ```bash
 cd crates/fig_desktop
@@ -10,44 +10,44 @@ chmod +x scripts/setup-dev.sh
 ./scripts/setup-dev.sh
 ```
 
-このスクリプトが以下を自動で行います：
-- Rust 1.87.0 のインストール
-- Tauri CLI のインストール
-- Node.js 22 のインストール
-- Python 3.11 のインストール
-- 仮想環境の作成
-- 依存関係のインストール
+This script automatically performs the following:
+- Install Rust 1.87.0
+- Install Tauri CLI
+- Install Node.js 22
+- Install Python 3.11
+- Create virtual environment
+- Install dependencies
 
-### 2. 開発サーバーの起動
+### 2. Start Development Server
 
 ```bash
-# Makefileを使用（推奨）
+# Using Makefile (recommended)
 make dev
 
-# または直接実行
+# Or run directly
 cargo tauri dev
 ```
 
-## 🛠️ 手動セットアップ
+## 🛠️ Manual Setup
 
-自動スクリプトが使えない場合の手動セットアップ：
+Manual setup if automatic script is not available:
 
-### 前提条件
+### Prerequisites
 ```bash
-# Homebrew のインストール
+# Install Homebrew
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # Xcode Command Line Tools
 xcode-select --install
 ```
 
-### Rust環境
+### Rust Environment
 ```bash
-# Rustup のインストール
+# Install Rustup
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 
-# 必要なバージョンとコンポーネント
+# Required versions and components
 rustup install 1.87.0
 rustup default 1.87.0
 rustup component add rustfmt clippy
@@ -57,19 +57,19 @@ rustup target add x86_64-apple-darwin aarch64-apple-darwin
 cargo install tauri-cli@1.6.0 --locked
 ```
 
-### Node.js環境
+### Node.js Environment
 ```bash
 # Node.js 22
 brew install node@22
 brew link node@22
 ```
 
-### Python環境
+### Python Environment
 ```bash
 # Python 3.11
 brew install python@3.11
 
-# 仮想環境（プロジェクトルートで実行）
+# Virtual environment (run from project root)
 cd ../..
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -77,83 +77,83 @@ pip install -r scripts/requirements.txt
 cd crates/fig_desktop
 ```
 
-### 依存関係のビルド
+### Build Dependencies
 ```bash
 cargo build -p fig_desktop
 ```
 
-## 📋 よく使うコマンド
+## 📋 Frequently Used Commands
 
-### Makefileコマンド（推奨）
+### Makefile Commands (Recommended)
 ```bash
-make help          # 利用可能なコマンド一覧
-make dev           # 開発サーバー起動
-make test          # テスト実行
-make lint          # リント実行
-make fmt           # フォーマット実行
-make check         # 全体チェック
-make build         # デバッグビルド
-make build-release # リリースビルド
-make clean         # クリーンアップ
+make help          # List available commands
+make dev           # Start development server
+make test          # Run tests
+make lint          # Run linting
+make fmt           # Format code
+make check         # Full check
+make build         # Debug build
+make build-release # Release build
+make clean         # Cleanup
 ```
 
-### 直接実行
+### Direct Execution
 ```bash
-# 開発
+# Development
 cargo tauri dev
 
-# テスト
+# Test
 cargo test -p fig_desktop
 
-# リント
+# Lint
 cargo clippy -p fig_desktop
 
-# フォーマット
+# Format
 cargo fmt
 
-# ビルド
+# Build
 cargo build -p fig_desktop
 cargo build -p fig_desktop --release
 ```
 
-## 🔍 環境の検証
+## 🔍 Environment Verification
 
 ```bash
-# 検証スクリプトの実行
+# Run verification script
 python3 verify_setup.py
 
-# または
+# Or
 make check-env
 ```
 
-## 🐛 トラブルシューティング
+## 🐛 Troubleshooting
 
-### よくある問題
+### Common Issues
 
-#### 1. `cargo tauri` コマンドが見つからない
+#### 1. `cargo tauri` command not found
 ```bash
-# パスの確認
+# Check PATH
 echo $PATH
 source ~/.cargo/env
 
-# 再インストール
+# Reinstall
 cargo install tauri-cli@1.6.0 --locked --force
 ```
 
-#### 2. Node.js のバージョンが古い
+#### 2. Node.js version is outdated
 ```bash
-# バージョン確認
+# Check version
 node --version
 
-# Node.js 22 に更新
+# Update to Node.js 22
 brew unlink node
 brew install node@22
 brew link node@22
 ```
 
-#### 3. Python 仮想環境の問題
+#### 3. Python virtual environment issues
 ```bash
-# 仮想環境の再作成
+# Recreate virtual environment
 rm -rf ../../.venv
 cd ../..
 python3.11 -m venv .venv
@@ -162,43 +162,43 @@ pip install -r scripts/requirements.txt
 cd crates/fig_desktop
 ```
 
-#### 4. Rust コンパイルエラー
+#### 4. Rust compilation errors
 ```bash
-# 依存関係の更新
+# Update dependencies
 cargo update
 
-# クリーンビルド
+# Clean build
 cargo clean
 cargo build -p fig_desktop
 ```
 
-## 📁 プロジェクト構造
+## 📁 Project Structure
 
 ```
 crates/fig_desktop/
-├── src/                    # Rustソースコード
-├── src-tauri/             # Tauri設定
-├── ui/                    # フロントエンド（次のタスクで実装）
-├── scripts/               # 開発スクリプト
-├── Makefile              # 開発用コマンド
-├── DEVELOPMENT_SETUP.md  # 詳細セットアップガイド
-└── QUICKSTART.md         # このファイル
+├── src/                    # Rust source code
+├── src-tauri/             # Tauri configuration
+├── ui/                    # Frontend (to be implemented in next task)
+├── scripts/               # Development scripts
+├── Makefile              # Development commands
+├── DEVELOPMENT_SETUP.md  # Detailed setup guide
+└── QUICKSTART.md         # This file
 ```
 
-## 🎯 次のステップ
+## 🎯 Next Steps
 
-1. **開発サーバーの起動**: `make dev`
-2. **コードの変更**: `src/` 以下のファイルを編集
-3. **テストの実行**: `make test`
-4. **フロントエンドの実装**: 次のタスクで `ui/` ディレクトリを作成
+1. **Start development server**: `make dev`
+2. **Modify code**: Edit files under `src/`
+3. **Run tests**: `make test`
+4. **Implement frontend**: Create `ui/` directory in next task
 
-## 📚 参考資料
+## 📚 References
 
-- [Tauri公式ドキュメント](https://tauri.app/v1/guides/)
-- [Rust公式ドキュメント](https://doc.rust-lang.org/book/)
-- [プロジェクトアーキテクチャ](./ARCHITECTURE.md)
-- [詳細セットアップガイド](./DEVELOPMENT_SETUP.md)
+- [Tauri Official Documentation](https://tauri.app/v1/guides/)
+- [Rust Official Documentation](https://doc.rust-lang.org/book/)
+- [Project Architecture](./ARCHITECTURE.md)
+- [Detailed Setup Guide](./DEVELOPMENT_SETUP.md)
 
 ---
 
-問題が発生した場合は、`DEVELOPMENT_SETUP.md` の詳細なトラブルシューティングセクションを参照してください。
+If you encounter issues, please refer to the detailed troubleshooting section in `DEVELOPMENT_SETUP.md`.

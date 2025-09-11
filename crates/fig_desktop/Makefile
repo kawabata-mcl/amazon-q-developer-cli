@@ -1,133 +1,133 @@
-# Amazon Q Desktop 開発用 Makefile
+# Amazon Q Desktop Development Makefile
 
 .PHONY: help setup dev build test lint fmt clean install-deps check-env
 
-# デフォルトターゲット
+# Default target
 help:
-	@echo "Amazon Q Desktop 開発用コマンド:"
+	@echo "Amazon Q Desktop Development Commands:"
 	@echo ""
-	@echo "セットアップ:"
-	@echo "  setup          - 開発環境の自動セットアップ"
-	@echo "  install-deps   - 依存関係のインストール"
-	@echo "  check-env      - 環境の検証"
+	@echo "Setup:"
+	@echo "  setup          - Automatic development environment setup"
+	@echo "  install-deps   - Install dependencies"
+	@echo "  check-env      - Verify environment"
 	@echo ""
-	@echo "開発:"
-	@echo "  dev            - 開発サーバーの起動"
-	@echo "  build          - デバッグビルド"
-	@echo "  build-release  - リリースビルド"
+	@echo "Development:"
+	@echo "  dev            - Start development server"
+	@echo "  build          - Debug build"
+	@echo "  build-release  - Release build"
 	@echo ""
-	@echo "テスト・品質:"
-	@echo "  test           - テストの実行"
-	@echo "  lint           - リントの実行"
-	@echo "  fmt            - コードフォーマット"
-	@echo "  check          - 全体チェック（テスト+リント+フォーマット）"
+	@echo "Testing & Quality:"
+	@echo "  test           - Run tests"
+	@echo "  lint           - Run linting"
+	@echo "  fmt            - Format code"
+	@echo "  check          - Full check (test + lint + format)"
 	@echo ""
-	@echo "その他:"
-	@echo "  clean          - ビルド成果物のクリーンアップ"
+	@echo "Other:"
+	@echo "  clean          - Clean build artifacts"
 
-# 開発環境のセットアップ
+# Development environment setup
 setup:
-	@echo "🚀 開発環境をセットアップしています..."
+	@echo "🚀 Setting up development environment..."
 	@chmod +x scripts/setup-dev.sh
 	@./scripts/setup-dev.sh
 
-# 依存関係のインストール
+# Install dependencies
 install-deps:
-	@echo "📦 依存関係をインストールしています..."
+	@echo "📦 Installing dependencies..."
 	@cargo build -p fig_desktop
 
-# 環境の検証
+# Environment verification
 check-env:
-	@echo "🔍 環境を検証しています..."
+	@echo "🔍 Verifying environment..."
 	@python3 verify_setup.py
 
-# 開発サーバーの起動
+# Start development server
 dev:
-	@echo "🔥 開発サーバーを起動しています..."
+	@echo "🔥 Starting development server..."
 	@cargo tauri dev
 
-# デバッグビルド
+# Debug build
 build:
-	@echo "🔨 デバッグビルドを実行しています..."
+	@echo "🔨 Running debug build..."
 	@cargo build -p fig_desktop
 
-# リリースビルド
+# Release build
 build-release:
-	@echo "🚀 リリースビルドを実行しています..."
+	@echo "🚀 Running release build..."
 	@cargo build -p fig_desktop --release
 
-# Tauriアプリケーションのビルド
+# Build Tauri application
 build-app:
-	@echo "📱 Tauriアプリケーションをビルドしています..."
+	@echo "📱 Building Tauri application..."
 	@cargo tauri build
 
-# テストの実行
+# Run tests
 test:
-	@echo "🧪 テストを実行しています..."
+	@echo "🧪 Running tests..."
 	@cargo test -p fig_desktop
 
-# リントの実行
+# Run linting
 lint:
-	@echo "🔍 リントを実行しています..."
+	@echo "🔍 Running linting..."
 	@cargo clippy -p fig_desktop -- -D warnings
 
-# フォーマットの実行
+# Format code
 fmt:
-	@echo "✨ コードをフォーマットしています..."
+	@echo "✨ Formatting code..."
 	@cargo +nightly fmt
 
-# フォーマットチェック
+# Check formatting
 fmt-check:
-	@echo "📝 フォーマットをチェックしています..."
+	@echo "📝 Checking formatting..."
 	@cargo +nightly fmt --check
 
-# 全体チェック
+# Full check
 check: test lint fmt-check
-	@echo "✅ 全体チェックが完了しました"
+	@echo "✅ Full check completed"
 
-# ビルド成果物のクリーンアップ
+# Clean build artifacts
 clean:
-	@echo "🧹 ビルド成果物をクリーンアップしています..."
+	@echo "🧹 Cleaning build artifacts..."
 	@cargo clean
 	@rm -rf src-tauri/target
 
-# 開発用ウォッチモード
+# Development watch mode
 watch:
-	@echo "👀 ファイル変更を監視しています..."
+	@echo "👀 Watching file changes..."
 	@cargo watch -x "build -p fig_desktop"
 
-# ログ付きで開発サーバーを起動
+# Start development server with verbose logging
 dev-verbose:
-	@echo "🔥 詳細ログ付きで開発サーバーを起動しています..."
+	@echo "🔥 Starting development server with verbose logging..."
 	@RUST_LOG=debug cargo tauri dev
 
-# 依存関係の更新
+# Update dependencies
 update-deps:
-	@echo "📦 依存関係を更新しています..."
+	@echo "📦 Updating dependencies..."
 	@cargo update
 
-# セキュリティ監査
+# Security audit
 audit:
-	@echo "🔒 セキュリティ監査を実行しています..."
+	@echo "🔒 Running security audit..."
 	@cargo audit
 
-# ベンチマークの実行
+# Run benchmarks
 bench:
-	@echo "⚡ ベンチマークを実行しています..."
+	@echo "⚡ Running benchmarks..."
 	@cargo bench -p fig_desktop
 
-# ドキュメントの生成
+# Generate documentation
 docs:
-	@echo "📚 ドキュメントを生成しています..."
+	@echo "📚 Generating documentation..."
 	@cargo doc -p fig_desktop --open
 
-# 開発環境のリセット
+# Reset development environment
 reset:
-	@echo "🔄 開発環境をリセットしています..."
+	@echo "🔄 Resetting development environment..."
 	@cargo clean
 	@rm -rf ../../.venv
 	@rm -f .env
 
-# CI/CD用のチェック
+# CI/CD check
 ci-check: fmt-check lint test
-	@echo "🤖 CI/CDチェックが完了しました"
+	@echo "🤖 CI/CD check completed"

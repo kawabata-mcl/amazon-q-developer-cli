@@ -1,4 +1,4 @@
-/// チャット関連のTauriコマンド
+/// Chat-related Tauri commands
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,18 +11,18 @@ use crate::state::{AppState, GuiMessage, MessageRole, GuiConversationState};
 use crate::utils::cli_bridge::CliBridge;
 use super::{GuiError, ChatResponse};
 
-/// メッセージ送信コマンド
+/// Send message command
 #[tauri::command]
 pub async fn send_message(
     state: State<'_, Arc<Mutex<AppState>>>,
     message: String,
     conversation_id: Option<String>,
 ) -> Result<ChatResponse, String> {
-    info!("メッセージ送信を開始します: {}", message);
+    info!("Starting message send: {}", message);
     
     let start_time = std::time::Instant::now();
     
-    // 会話IDの取得または新規作成
+    // Get conversation ID or create new one
     let conv_id = match conversation_id {
         Some(id) => id,
         None => {
@@ -31,7 +31,7 @@ pub async fn send_message(
         }
     };
     
-    // ユーザーメッセージを会話に追加
+    // Add user message to conversation
     {
         let mut app_state = state.lock().await;
         let user_message = GuiMessage {
@@ -45,12 +45,12 @@ pub async fn send_message(
         app_state.add_message_to_conversation(&conv_id, user_message);
     }
     
-    // CLI bridgeを使用してメッセージを送信
+    // Send message using CLI bridge
     match CliBridge::send_chat_message(&message).await {
         Ok(response) => {
             let processing_time = start_time.elapsed().as_millis() as u64;
             
-            // アシスタントの応答を会話に追加
+            // Add assistant response to conversation
             {
                 let mut app_state = state.lock().await;
                 let assistant_message = GuiMessage {
@@ -75,18 +75,18 @@ pub async fn send_message(
                 model: response.model,
             };
             
-            info!("メッセージ送信が成功しました");
+            info!("Message send successful");
             Ok(chat_response)
         }
         Err(e) => {
-            let error_msg = format!("メッセージ送信に失敗しました: {}", e);
+            let error_msg = format!("Message send failed: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
         }
     }
 }
 
-/// 会話履歴取得コマンド
+/// Get conversation history command
 #[tauri::command]
 pub async fn get_conversation_history(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -96,18 +96,18 @@ pub async fn get_conversation_history(
     
     match app_state.conversations.get(&conversation_id) {
         Some(conversation) => {
-            info!("会話履歴を取得しました: {}", conversation_id);
+            info!("Retrieved conversation history: {}", conversation_id);
             Ok(conversation.messages.clone())
         }
         None => {
-            let error_msg = format!("会話が見つかりません: {}", conversation_id);
+            let error_msg = format!("Conversation not found: {}", conversation_id);
             error!("{}", error_msg);
             Err(error_msg)
         }
     }
 }
 
-/// 新しい会話開始コマンド
+/// Start new conversation command
 #[tauri::command]
 pub async fn start_new_conversation(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -115,11 +115,11 @@ pub async fn start_new_conversation(
     let mut app_state = state.lock().await;
     let conversation_id = app_state.start_new_conversation();
     
-    info!("新しい会話を開始しました: {}", conversation_id);
+    info!("Started new conversation: {}", conversation_id);
     Ok(conversation_id)
 }
 
-/// 全会話リスト取得コマンド
+/// Get all conversations list command
 #[tauri::command]
 pub async fn get_all_conversations(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -131,11 +131,11 @@ pub async fn get_all_conversations(
         .cloned()
         .collect();
     
-    info!("全会話リストを取得しました: {} 件", conversations.len());
+    info!("Retrieved all conversations list: {} items", conversations.len());
     Ok(conversations)
 }
 
-/// 会話削除コマンド
+/// Delete conversation command
 #[tauri::command]
 pub async fn delete_conversation(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -145,16 +145,16 @@ pub async fn delete_conversation(
     
     match app_state.conversations.remove(&conversation_id) {
         Some(_) => {
-            // 削除した会話が現在の会話だった場合、現在の会話をクリア
+            // Clear current conversation if the deleted one was active
             if app_state.current_conversation_id.as_ref() == Some(&conversation_id) {
                 app_state.current_conversation_id = None;
             }
             
-            info!("会話を削除しました: {}", conversation_id);
+            info!("Deleted conversation: {}", conversation_id);
             Ok(())
         }
         None => {
-            let error_msg = format!("削除対象の会話が見つかりません: {}", conversation_id);
+            let error_msg = format!("Conversation to delete not found: {}", conversation_id);
             error!("{}", error_msg);
             Err(error_msg)
         }

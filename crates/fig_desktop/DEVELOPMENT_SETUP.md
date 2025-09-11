@@ -1,281 +1,281 @@
-# Amazon Q Desktop 開発環境セットアップ
+# Amazon Q Desktop Development Environment Setup
 
-## 前提条件
+## Prerequisites
 
-### macOS システム要件
-- macOS 10.15 (Catalina) 以上
+### macOS System Requirements
+- macOS 10.15 (Catalina) or later
 - Xcode Command Line Tools
-- 8GB以上のRAM推奨
+- 8GB+ RAM recommended
 
-## 1. 基本ツールのインストール
+## 1. Basic Tools Installation
 
-### Homebrew のインストール
+### Install Homebrew
 ```bash
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-### Xcode Command Line Tools のインストール
+### Install Xcode Command Line Tools
 ```bash
 xcode-select --install
 ```
 
-## 2. Rust 開発環境のセットアップ
+## 2. Rust Development Environment Setup
 
-### Rustup のインストール
+### Install Rustup
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 source ~/.cargo/env
 ```
 
-### 必要なRustツールチェーンのインストール
+### Install Required Rust Toolchain
 ```bash
-# プロジェクトで指定されたバージョンをインストール
+# Install the version specified by the project
 rustup install 1.87.0
 rustup default 1.87.0
 
-# 必要なコンポーネントを追加
+# Add required components
 rustup component add rustfmt clippy
 
-# macOS用のターゲットを追加
+# Add targets for macOS
 rustup target add x86_64-apple-darwin
 rustup target add aarch64-apple-darwin
 ```
 
-### Tauri CLI のインストール
+### Install Tauri CLI
 ```bash
-# 特定のバージョンをインストール（プロジェクトで使用）
+# Install specific version (used by project)
 cargo install tauri-cli@1.6.0 --locked
 ```
 
-## 3. Node.js 開発環境のセットアップ
+## 3. Node.js Development Environment Setup
 
-### Node.js のインストール（mise使用）
+### Install Node.js (using mise)
 ```bash
-# mise のインストール
+# Install mise
 curl https://mise.run | sh
 echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
 source ~/.bashrc
 
-# プロジェクトで指定されたNode.jsバージョンをインストール
+# Install Node.js version specified by project
 mise install node@22
 mise use node@22
 ```
 
-### または、直接Node.jsをインストール
+### Or install Node.js directly
 ```bash
-# Homebrewを使用
+# Using Homebrew
 brew install node@22
 brew link node@22
 
-# バージョン確認
-node --version  # v22.x.x が表示されることを確認
+# Check version
+node --version  # Verify v22.x.x is displayed
 npm --version
 ```
 
-## 4. Python 開発環境のセットアップ（ビルドスクリプト用）
+## 4. Python Development Environment Setup (for build scripts)
 
-### Python のインストール
+### Install Python
 ```bash
-# mise を使用
+# Using mise
 mise install python@3.11
 mise use python@3.11
 
-# または Homebrew を使用
+# Or using Homebrew
 brew install python@3.11
 ```
 
-### 仮想環境の作成とアクティベート
+### Create and activate virtual environment
 ```bash
-# プロジェクトルートで実行
+# Run from project root
 python3.11 -m venv .venv
 source .venv/bin/activate
 
-# 必要なPythonパッケージをインストール
-pip install -r build-scripts/requirements.txt
+# Install required Python packages
+pip install -r scripts/requirements.txt
 ```
 
-## 5. プロジェクトのクローンとセットアップ
+## 5. Project Clone and Setup
 
-### リポジトリのクローン
+### Clone Repository
 ```bash
 git clone <repository-url>
 cd amazon-q-developer-cli
 ```
 
-### 依存関係のインストール
+### Install Dependencies
 ```bash
-# Rust依存関係のビルド（初回は時間がかかります）
+# Build Rust dependencies (takes time on first run)
 cargo build
 
-# fig_desktop クレート専用のビルド
+# Build fig_desktop crate specifically
 cargo build -p fig_desktop
 ```
 
-## 6. 開発用の追加ツール
+## 6. Additional Development Tools
 
-### 推奨エディタ拡張
-VS Code を使用する場合：
+### Recommended Editor Extensions
+For VS Code users:
 - rust-analyzer
 - Tauri
 - ES7+ React/Redux/React-Native snippets
 - Prettier - Code formatter
 
-### デバッグツール
+### Debug Tools
 ```bash
-# Rust用デバッガー
+# Rust debugger
 cargo install cargo-watch
 
-# ログ表示用
+# Log display
 cargo install bunyan
 ```
 
-## 7. 開発サーバーの起動
+## 7. Start Development Server
 
-### Tauri 開発モードの起動
+### Start Tauri Development Mode
 ```bash
 cd crates/fig_desktop
 
-# 開発モードでアプリケーションを起動
+# Start application in development mode
 cargo tauri dev
 ```
 
-### フロントエンド開発サーバー（Next.js実装後）
+### Frontend Development Server (after Next.js implementation)
 ```bash
 cd crates/fig_desktop/ui
 
-# 依存関係のインストール
+# Install dependencies
 npm install
 
-# 開発サーバーの起動
+# Start development server
 npm run dev
 ```
 
-## 8. ビルドとテスト
+## 8. Build and Test
 
-### 開発ビルド
+### Development Build
 ```bash
-# Rustバックエンドのビルド
+# Build Rust backend
 cargo build -p fig_desktop
 
-# リリースビルド
+# Release build
 cargo build -p fig_desktop --release
 
-# Tauriアプリケーションのビルド
+# Build Tauri application
 cd crates/fig_desktop
 cargo tauri build
 ```
 
-### テストの実行
+### Run Tests
 ```bash
-# Rustテストの実行
+# Run Rust tests
 cargo test -p fig_desktop
 
-# 全体テストの実行
+# Run all tests
 cargo test --workspace
 ```
 
-### リントとフォーマット
+### Lint and Format
 ```bash
-# Clippy（リント）の実行
+# Run Clippy (linting)
 cargo clippy -p fig_desktop
 
-# フォーマットの実行
+# Run formatting
 cargo fmt
 
-# または nightly フォーマット
+# Or nightly formatting
 cargo +nightly fmt
 ```
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### よくある問題と解決方法
+### Common Issues and Solutions
 
-#### 1. Tauri CLI が見つからない
+#### 1. Tauri CLI not found
 ```bash
-# パスの確認
+# Check PATH
 echo $PATH
 source ~/.cargo/env
 
-# 再インストール
+# Reinstall
 cargo install tauri-cli@1.6.0 --locked --force
 ```
 
-#### 2. macOS でのコード署名エラー
+#### 2. Code signing errors on macOS
 ```bash
-# 開発用証明書の作成（開発時のみ）
-# Xcode > Preferences > Accounts でApple IDを追加
+# Create development certificate (development only)
+# Add Apple ID in Xcode > Preferences > Accounts
 ```
 
-#### 3. Node.js バージョンの問題
+#### 3. Node.js version issues
 ```bash
-# Node.jsバージョンの確認
+# Check Node.js version
 node --version
 
-# 正しいバージョンに切り替え
+# Switch to correct version
 mise use node@22
 ```
 
-#### 4. Python 仮想環境の問題
+#### 4. Python virtual environment issues
 ```bash
-# 仮想環境の再作成
+# Recreate virtual environment
 rm -rf .venv
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip install -r build-scripts/requirements.txt
+pip install -r scripts/requirements.txt
 ```
 
-## 10. 開発ワークフロー
+## 10. Development Workflow
 
-### 日常的な開発フロー
+### Daily Development Flow
 ```bash
-# 1. 仮想環境のアクティベート
+# 1. Activate virtual environment
 source .venv/bin/activate
 
-# 2. 最新コードの取得
+# 2. Get latest code
 git pull origin main
 
-# 3. 依存関係の更新
+# 3. Update dependencies
 cargo update
 
-# 4. 開発サーバーの起動
+# 4. Start development server
 cd crates/fig_desktop
 cargo tauri dev
 
-# 5. コード変更後のテスト
+# 5. Test after code changes
 cargo test -p fig_desktop
 cargo clippy -p fig_desktop
 ```
 
-### リリース前のチェック
+### Pre-release Checks
 ```bash
-# 1. 全テストの実行
+# 1. Run all tests
 cargo test --workspace
 
-# 2. リントチェック
+# 2. Lint check
 cargo clippy --workspace -- -D warnings
 
-# 3. フォーマットチェック
+# 3. Format check
 cargo +nightly fmt --check
 
-# 4. リリースビルド
+# 4. Release build
 cargo tauri build
 ```
 
-## 11. 環境変数の設定
+## 11. Environment Variables Setup
 
-### 開発用環境変数
+### Development Environment Variables
 ```bash
-# ~/.bashrc または ~/.zshrc に追加
+# Add to ~/.bashrc or ~/.zshrc
 export RUST_LOG=debug
 export TAURI_DEBUG=true
 
-# 開発時のみ署名を無効化
+# Disable signing for development only
 export DISABLE_SIGNING=true
 ```
 
-## 12. IDE設定
+## 12. IDE Configuration
 
-### VS Code 設定例 (.vscode/settings.json)
+### VS Code Configuration Example (.vscode/settings.json)
 ```json
 {
   "rust-analyzer.cargo.features": ["dev"],
@@ -287,23 +287,23 @@ export DISABLE_SIGNING=true
 }
 ```
 
-## 13. 検証スクリプトの実行
+## 13. Run Verification Script
 
-セットアップが完了したら、検証スクリプトを実行して環境を確認：
+After setup is complete, run the verification script to check your environment:
 
 ```bash
 cd crates/fig_desktop
 python3 verify_setup.py
 ```
 
-## サポート
+## Support
 
-問題が発生した場合は、以下を確認してください：
+If you encounter issues, please check the following:
 
-1. [Tauri公式ドキュメント](https://tauri.app/v1/guides/getting-started/prerequisites)
-2. [Rust公式ドキュメント](https://doc.rust-lang.org/book/)
-3. プロジェクトの `TROUBLESHOOTING.md`（作成予定）
+1. [Tauri Official Documentation](https://tauri.app/v1/guides/getting-started/prerequisites)
+2. [Rust Official Documentation](https://doc.rust-lang.org/book/)
+3. Project `TROUBLESHOOTING.md` (planned)
 
 ---
 
-このセットアップガイドに従って環境を構築することで、Amazon Q Desktop アプリケーションの開発を開始できます。
+By following this setup guide, you can start developing the Amazon Q Desktop application.

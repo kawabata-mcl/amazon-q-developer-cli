@@ -19,35 +19,35 @@ path = "src/main.rs"
 tauri-build.workspace = true
 
 [dependencies]
-# Tauri関連の依存関係
+# Tauri-related dependencies
 tauri.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 
-# 既存のchat-cliクレートとの統合
+# Integration with existing chat-cli crate
 chat-cli = { path = "../chat-cli" }
 
-# 非同期処理
+# Async runtime
 tokio.workspace = true
 futures.workspace = true
 
-# エラーハンドリング
+# Error handling
 thiserror.workspace = true
 eyre.workspace = true
 
-# ログ出力
+# Logging
 tracing.workspace = true
 
-# UUID生成
+# UUID generation
 uuid.workspace = true
 
-# 時間処理
+# Time handling
 time.workspace = true
 
-# ファイルシステム操作
+# File system operations
 dirs.workspace = true
 
 [features]
-# Tauriのデフォルト機能を有効化
+# Enable Tauri's default features
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

@@ -1,4 +1,4 @@
-/// ファイル操作関連のTauriコマンド
+/// File operation related Tauri commands
 
 use std::path::Path;
 use tauri::State;
@@ -6,38 +6,38 @@ use tracing::{info, error};
 
 use super::{GuiError, FileContent};
 
-/// ファイル内容読み込みコマンド
+/// Read file content command
 #[tauri::command]
 pub async fn read_file_content(
     file_path: String,
 ) -> Result<FileContent, String> {
-    info!("ファイル読み込みを開始します: {}", file_path);
+    info!("Starting file read: {}", file_path);
     
     let path = Path::new(&file_path);
     
-    // ファイルの存在確認
+    // Check file existence
     if !path.exists() {
-        let error_msg = format!("ファイルが存在しません: {}", file_path);
+        let error_msg = format!("File does not exist: {}", file_path);
         error!("{}", error_msg);
         return Err(error_msg);
     }
     
-    // ファイルサイズの確認（大きすぎるファイルを避ける）
+    // Check file size (avoid files that are too large)
     match std::fs::metadata(&path) {
         Ok(metadata) => {
             let file_size = metadata.len();
             
-            // 10MB以上のファイルは読み込みを拒否
+            // Reject files larger than 10MB
             if file_size > 10 * 1024 * 1024 {
-                let error_msg = format!("ファイルサイズが大きすぎます: {} bytes", file_size);
+                let error_msg = format!("File size too large: {} bytes", file_size);
                 error!("{}", error_msg);
                 return Err(error_msg);
             }
             
-            // ファイル内容の読み込み
+            // Read file content
             match tokio::fs::read_to_string(&path).await {
                 Ok(content) => {
-                    // MIME タイプの推定
+                    // Guess MIME type
                     let mime_type = guess_mime_type(&file_path);
                     
                     let file_content = FileContent {
@@ -47,43 +47,43 @@ pub async fn read_file_content(
                         mime_type,
                     };
                     
-                    info!("ファイル読み込みが成功しました: {} ({} bytes)", file_path, file_size);
+                    info!("File read successful: {} ({} bytes)", file_path, file_size);
                     Ok(file_content)
                 }
                 Err(e) => {
-                    let error_msg = format!("ファイル読み込みに失敗しました: {}", e);
+                    let error_msg = format!("File read failed: {}", e);
                     error!("{}", error_msg);
                     Err(error_msg)
                 }
             }
         }
         Err(e) => {
-            let error_msg = format!("ファイル情報の取得に失敗しました: {}", e);
+            let error_msg = format!("Failed to get file information: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
         }
     }
 }
 
-/// ファイル内容保存コマンド
+/// Save file content command
 #[tauri::command]
 pub async fn save_file_content(
     file_path: String,
     content: String,
 ) -> Result<(), String> {
-    info!("ファイル保存を開始します: {}", file_path);
+    info!("Starting file save: {}", file_path);
     
     let path = Path::new(&file_path);
     
-    // ディレクトリが存在しない場合は作成
+    // Create directory if it doesn't exist
     if let Some(parent) = path.parent() {
         if !parent.exists() {
             match tokio::fs::create_dir_all(parent).await {
                 Ok(_) => {
-                    info!("ディレクトリを作成しました: {:?}", parent);
+                    info!("Created directory: {:?}", parent);
                 }
                 Err(e) => {
-                    let error_msg = format!("ディレクトリ作成に失敗しました: {}", e);
+                    let error_msg = format!("Failed to create directory: {}", e);
                     error!("{}", error_msg);
                     return Err(error_msg);
                 }
@@ -91,36 +91,36 @@ pub async fn save_file_content(
         }
     }
     
-    // ファイル内容の保存
+    // Save file content
     match tokio::fs::write(&path, content.as_bytes()).await {
         Ok(_) => {
-            info!("ファイル保存が成功しました: {}", file_path);
+            info!("File save successful: {}", file_path);
             Ok(())
         }
         Err(e) => {
-            let error_msg = format!("ファイル保存に失敗しました: {}", e);
+            let error_msg = format!("File save failed: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
         }
     }
 }
 
-/// ファイルコンテキスト追加コマンド（ドラッグ&ドロップ用）
+/// Add file context command (for drag & drop)
 #[tauri::command]
 pub async fn add_file_context(
     file_name: String,
     content: String,
 ) -> Result<(), String> {
-    info!("ファイルコンテキストを追加します: {}", file_name);
+    info!("Adding file context: {}", file_name);
     
-    // TODO: 実際のCLI bridgeを使用してファイルコンテキストを追加
-    // 現在はログ出力のみ
-    info!("ファイルコンテキストが追加されました: {} ({} 文字)", file_name, content.len());
+    // TODO: Use actual CLI bridge to add file context
+    // Currently only logging
+    info!("File context added: {} ({} characters)", file_name, content.len());
     
     Ok(())
 }
 
-/// MIME タイプの推定
+/// Guess MIME type
 fn guess_mime_type(file_path: &str) -> Option<String> {
     let path = Path::new(file_path);
     

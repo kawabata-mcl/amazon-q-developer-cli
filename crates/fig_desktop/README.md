@@ -1,61 +1,61 @@
 # Amazon Q Desktop
 
-Amazon Q Developer CLIのmacOS向けGUIアプリケーション
+macOS GUI application for Amazon Q Developer CLI
 
-## 概要
+## Overview
 
-このクレートは、既存のAmazon Q Developer CLI機能をTauriフレームワークを使用してmacOSネイティブアプリケーションとして提供します。
+This crate provides existing Amazon Q Developer CLI functionality as a macOS native application using the Tauri framework.
 
-## 機能
+## Features
 
-- **認証**: AWS SSOを使用したログイン/ログアウト
-- **チャット**: Amazon Q Developerとのリアルタイムチャット
-- **ファイル操作**: ドラッグ&ドロップによるファイルコンテキスト追加
-- **設定管理**: アプリケーション設定の管理
-- **会話履歴**: チャット履歴の保存と管理
+- **Authentication**: Login/logout using AWS SSO
+- **Chat**: Real-time chat with Amazon Q Developer
+- **File Operations**: Add file context via drag & drop
+- **Settings Management**: Manage application settings
+- **Conversation History**: Save and manage chat history
 
-## アーキテクチャ
+## Architecture
 
-- **フロントエンド**: Next.js + React + TypeScript
-- **バックエンド**: Rust + Tauri
-- **CLI統合**: 既存のchat-cliクレートとの統合
+- **Frontend**: Next.js + React + TypeScript
+- **Backend**: Rust + Tauri
+- **CLI Integration**: Integration with existing chat-cli crate
 
-## 開発
+## Development
 
-### 前提条件
+### Prerequisites
 
-- Rust 1.79.0以上
-- Node.js 22以上
+- Rust 1.79.0 or higher
+- Node.js 22 or higher
 - Tauri CLI
 
-### ビルド
+### Build
 
 ```bash
-# 開発モード
+# Development mode
 cargo tauri dev
 
-# リリースビルド
+# Release build
 cargo tauri build
 ```
 
-### プロジェクト構造
+### Project Structure
 
 ```
 crates/fig_desktop/
 ├── src/                     # Rust backend
-│   ├── main.rs              # エントリーポイント
-│   ├── state.rs             # アプリケーション状態管理
+│   ├── main.rs              # Entry point
+│   ├── state.rs             # Application state management
 │   ├── commands/            # Tauri commands
-│   └── utils/               # ユーティリティ
-├── src-tauri/               # Tauri設定
-│   └── tauri.conf.json      # Tauri設定ファイル
+│   └── utils/               # Utilities
+├── src-tauri/               # Tauri configuration
+│   └── tauri.conf.json      # Tauri configuration file
 └── ui/                      # Next.js frontend (TODO)
 ```
 
 ## TODO
 
-- [ ] Next.jsフロントエンドの実装
-- [ ] 実際のCLI機能との統合
-- [ ] アプリケーションアイコンの追加
-- [ ] DMGパッケージング
-- [ ] コード署名と公証
+- [ ] Implement Next.js frontend
+- [ ] Integrate with actual CLI functionality
+- [ ] Add application icons
+- [ ] DMG packaging
+- [ ] Code signing and notarization

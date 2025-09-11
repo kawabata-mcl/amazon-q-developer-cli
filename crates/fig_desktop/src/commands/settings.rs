@@ -1,4 +1,4 @@
-/// 設定関連のTauriコマンド
+/// Settings-related Tauri commands
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -8,45 +8,45 @@ use tracing::{info, error};
 use crate::state::{AppState, AppSettings};
 use super::GuiError;
 
-/// 設定取得コマンド
+/// Get settings command
 #[tauri::command]
 pub async fn get_settings(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<AppSettings, String> {
     let app_state = state.lock().await;
-    info!("設定を取得しました");
+    info!("Retrieved settings");
     Ok(app_state.settings.clone())
 }
 
-/// 設定更新コマンド
+/// Update settings command
 #[tauri::command]
 pub async fn update_settings(
     state: State<'_, Arc<Mutex<AppState>>>,
     settings: AppSettings,
 ) -> Result<(), String> {
-    info!("設定を更新します");
+    info!("Updating settings");
     
-    // 設定の妥当性チェック
+    // Validate settings
     if let Err(validation_error) = validate_settings(&settings) {
-        let error_msg = format!("設定が無効です: {}", validation_error);
+        let error_msg = format!("Invalid settings: {}", validation_error);
         error!("{}", error_msg);
         return Err(error_msg);
     }
     
-    // 設定を更新
+    // Update settings
     {
         let mut app_state = state.lock().await;
         app_state.settings = settings;
     }
     
-    // TODO: 設定をファイルに永続化
-    // 現在はメモリ内のみの更新
+    // TODO: Persist settings to file
+    // Currently only in-memory updates
     
-    info!("設定の更新が完了しました");
+    info!("Settings update completed");
     Ok(())
 }
 
-/// ウィンドウ設定更新コマンド
+/// Update window settings command
 #[tauri::command]
 pub async fn update_window_settings(
     state: State<'_, Arc<Mutex<AppState>>>,
@@ -56,7 +56,7 @@ pub async fn update_window_settings(
     y: Option<i32>,
     maximized: bool,
 ) -> Result<(), String> {
-    info!("ウィンドウ設定を更新します: {}x{}", width, height);
+    info!("Updating window settings: {}x{}", width, height);
     
     {
         let mut app_state = state.lock().await;
@@ -67,33 +67,33 @@ pub async fn update_window_settings(
         app_state.settings.window_settings.maximized = maximized;
     }
     
-    info!("ウィンドウ設定の更新が完了しました");
+    info!("Window settings update completed");
     Ok(())
 }
 
-/// テーマ設定更新コマンド
+/// Update theme settings command
 #[tauri::command]
 pub async fn update_theme(
     state: State<'_, Arc<Mutex<AppState>>>,
     theme: crate::state::Theme,
 ) -> Result<(), String> {
-    info!("テーマ設定を更新します: {:?}", theme);
+    info!("Updating theme settings: {:?}", theme);
     
     {
         let mut app_state = state.lock().await;
         app_state.settings.appearance.theme = theme;
     }
     
-    info!("テーマ設定の更新が完了しました");
+    info!("Theme settings update completed");
     Ok(())
 }
 
-/// 設定リセットコマンド
+/// Reset settings command
 #[tauri::command]
 pub async fn reset_settings(
     state: State<'_, Arc<Mutex<AppState>>>,
 ) -> Result<AppSettings, String> {
-    info!("設定をリセットします");
+    info!("Resetting settings");
     
     let default_settings = AppSettings::default();
     
@@ -102,29 +102,29 @@ pub async fn reset_settings(
         app_state.settings = default_settings.clone();
     }
     
-    info!("設定のリセットが完了しました");
+    info!("Settings reset completed");
     Ok(default_settings)
 }
 
-/// 設定の妥当性チェック
+/// Validate settings
 fn validate_settings(settings: &AppSettings) -> Result<(), String> {
-    // ウィンドウサイズの妥当性チェック
+    // Window size validation
     if settings.window_settings.width < 400 {
-        return Err("ウィンドウ幅は400px以上である必要があります".to_string());
+        return Err("Window width must be at least 400px".to_string());
     }
     
     if settings.window_settings.height < 300 {
-        return Err("ウィンドウ高さは300px以上である必要があります".to_string());
+        return Err("Window height must be at least 300px".to_string());
     }
     
-    // フォントサイズの妥当性チェック
+    // Font size validation
     if settings.appearance.font_size < 8 || settings.appearance.font_size > 72 {
-        return Err("フォントサイズは8px〜72pxの範囲で設定してください".to_string());
+        return Err("Font size must be between 8px and 72px".to_string());
     }
     
-    // 履歴数の妥当性チェック
+    // History count validation
     if settings.chat_settings.max_history_count > 1000 {
-        return Err("最大履歴数は1000件以下で設定してください".to_string());
+        return Err("Maximum history count must be 1000 or less".to_string());
     }
     
     Ok(())
