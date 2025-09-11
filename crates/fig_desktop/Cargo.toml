@@ -1,0 +1,53 @@
+[package]
+name = "fig_desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lib]
+name = "fig_desktop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fig_desktop"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build.workspace = true
+
+[dependencies]
+# Tauri関連の依存関係
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# 既存のchat-cliクレートとの統合
+chat-cli = { path = "../chat-cli" }
+
+# 非同期処理
+tokio.workspace = true
+futures.workspace = true
+
+# エラーハンドリング
+thiserror.workspace = true
+eyre.workspace = true
+
+# ログ出力
+tracing.workspace = true
+
+# UUID生成
+uuid.workspace = true
+
+# 時間処理
+time.workspace = true
+
+# ファイルシステム操作
+dirs.workspace = true
+
+[features]
+# Tauriのデフォルト機能を有効化
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

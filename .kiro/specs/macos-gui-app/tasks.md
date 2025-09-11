@@ -1,6 +1,6 @@
 # Implementation Plan
 
-- [ ] 1. プロジェクト構造とTauri基盤の構築
+- [x] 1. プロジェクト構造とTauri基盤の構築
   - fig_desktopクレートの作成とCargo.tomlの設定
   - Tauriプロジェクトの初期化とtauri.conf.jsonの設定
   - 既存のchat-cliクレートとの依存関係の設定
