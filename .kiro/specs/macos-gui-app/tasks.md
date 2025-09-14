@@ -6,14 +6,15 @@
   - 既存のchat-cliクレートとの依存関係の設定
   - _Requirements: 1.1, 3.1_
 
-- [ ] 2. Next.jsフロントエンドの基盤構築
-  - [ ] 2.1 Next.jsプロジェクトの初期化と設定
+- [-] 2. Next.jsフロントエンドの基盤構築
+  - [x] 2.1 Next.jsプロジェクトの初期化と設定
+    - Next.jsの初期セットアップを実施しているので、ディレクトリを確認し、作業内容を決定する
     - package.jsonの作成と依存関係の設定
     - next.config.mjsで静的エクスポート設定（output: 'export'）
     - TypeScript、Tailwind CSS、ESLintの設定
     - _Requirements: 1.1, 7.1_
 
-  - [ ] 2.2 基本的なApp Routerページ構造の作成
+  - [x] 2.2 基本的なApp Routerページ構造の作成
     - app/layout.tsxでルートレイアウトの実装
     - app/page.tsxでホームページの実装
     - app/chat/page.tsxでチャットページの実装
