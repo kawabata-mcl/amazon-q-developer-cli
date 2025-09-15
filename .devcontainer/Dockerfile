@@ -10,6 +10,7 @@ RUN apt-get update \
        libssl-dev \
        libgtk-3-dev \
        libwebkit2gtk-4.1-dev \
+       libsoup2.4-dev \
        libayatana-appindicator3-dev \
        librsvg2-dev \
        patchelf \
@@ -47,5 +48,18 @@ RUN set -eux; \
     unzip -q /tmp/awscliv2.zip -d /tmp; \
     /tmp/aws/install; \
     rm -rf /tmp/aws /tmp/awscliv2.zip
+
+# Provide pkg-config compatibility for WebKitGTK 4.0 name on Ubuntu 24.04 (which ships 4.1)
+RUN set -eux; \
+  for dir in /usr/lib/*-linux-gnu/pkgconfig; do \
+    if [ -d "$dir" ]; then \
+      if [ -f "$dir/webkit2gtk-4.1.pc" ] && [ ! -e "$dir/webkit2gtk-4.0.pc" ]; then \
+        ln -s "$dir/webkit2gtk-4.1.pc" "$dir/webkit2gtk-4.0.pc"; \
+      fi; \
+      if [ -f "$dir/javascriptcoregtk-4.1.pc" ] && [ ! -e "$dir/javascriptcoregtk-4.0.pc" ]; then \
+        ln -s "$dir/javascriptcoregtk-4.1.pc" "$dir/javascriptcoregtk-4.0.pc"; \
+      fi; \
+    fi; \
+  done
 
 

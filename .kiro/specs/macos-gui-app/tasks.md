@@ -21,8 +21,8 @@
     - app/settings/page.tsxで設定ページの実装
     - _Requirements: 1.1, 4.2_
 
-- [ ] 3. Rust バックエンドのTauriコマンド実装
-  - [ ] 3.1 認証関連コマンドの実装
+- [-] 3. Rust バックエンドのTauriコマンド実装
+  - [x] 3.1 認証関連コマンドの実装
     - login、logout、get_auth_statusコマンドの作成
     - 既存のauth moduleとの統合
     - 認証状態の管理とエラーハンドリング

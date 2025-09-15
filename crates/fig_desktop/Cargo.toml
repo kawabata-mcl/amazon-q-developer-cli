@@ -15,9 +15,6 @@ path = "src/lib.rs"
 name = "fig_desktop"
 path = "src/main.rs"
 
-[build-dependencies]
-tauri-build.workspace = true
-
 [dependencies]
 # Tauri-related dependencies
 tauri.workspace = true
@@ -25,7 +22,7 @@ serde.workspace = true
 serde_json.workspace = true
 
 # Integration with existing chat-cli crate
-chat-cli = { path = "../chat-cli" }
+chat_cli = { path = "../chat-cli" }
 
 # Async runtime
 tokio.workspace = true
@@ -37,6 +34,7 @@ eyre.workspace = true
 
 # Logging
 tracing.workspace = true
+tracing-subscriber.workspace = true
 
 # UUID generation
 uuid.workspace = true

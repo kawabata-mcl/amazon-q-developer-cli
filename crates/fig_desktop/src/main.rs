@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, error};
+use tracing::info;
 
 // Make available as library as well
 pub mod commands;
@@ -18,7 +18,7 @@ use state::AppState;
 async fn main() {
     // Initialize logging
     tracing_subscriber::fmt::init();
-    
+
     info!("Starting Amazon Q Desktop application");
 
     // Initialize application state
@@ -49,10 +49,10 @@ async fn main() {
             settings::update_theme,
             settings::reset_settings
         ])
-        .setup(|app| {
+        .setup(|_app| {
             info!("Tauri application setup completed");
             Ok(())
         })
-        .run(tauri::generate_context!())
+        .run(tauri::generate_context!("src-tauri/tauri.conf.json"))
         .expect("Error occurred while running Tauri application");
 }

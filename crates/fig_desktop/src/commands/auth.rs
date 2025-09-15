@@ -1,71 +1,95 @@
 /// Authentication-related Tauri commands
-
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use tauri::State;
-use tracing::{info, error};
+use tokio::sync::Mutex;
+use tracing::{error, info};
 
 use crate::state::{AppState, AuthStatus};
 use crate::utils::cli_bridge::CliBridge;
-use super::GuiError;
 
 /// Login command
 #[tauri::command]
-pub async fn login(
-    state: State<'_, Arc<Mutex<AppState>>>,
-) -> Result<AuthStatus, String> {
+pub async fn login(state: State<'_, Arc<Mutex<AppState>>>) -> Result<AuthStatus, String> {
     info!("Starting login process");
-    
+
     // Update authentication status to "authenticating"
     {
         let mut app_state = state.lock().await;
         app_state.auth_status = AuthStatus::Authenticating;
     }
-    
+
+    // Create CLI bridge instance
+    let cli_bridge = match CliBridge::new().await {
+        Ok(bridge) => bridge,
+        Err(e) => {
+            let error_msg = format!("Failed to initialize CLI bridge: {}", e);
+            error!("{}", error_msg);
+
+            let auth_status = AuthStatus::Error {
+                message: error_msg.clone(),
+            };
+
+            {
+                let mut app_state = state.lock().await;
+                app_state.auth_status = auth_status;
+            }
+
+            return Err(error_msg);
+        },
+    };
+
     // Execute login process using CLI bridge
-    match CliBridge::execute_login().await {
+    match cli_bridge.execute_login().await {
         Ok(auth_info) => {
             let auth_status = AuthStatus::Authenticated {
                 username: auth_info.username,
                 provider: auth_info.provider,
             };
-            
+
             // Update authentication status
             {
                 let mut app_state = state.lock().await;
                 app_state.auth_status = auth_status.clone();
             }
-            
+
             info!("Login successful");
             Ok(auth_status)
-        }
+        },
         Err(e) => {
             let error_msg = format!("Login failed: {}", e);
             error!("{}", error_msg);
-            
+
             let auth_status = AuthStatus::Error {
                 message: error_msg.clone(),
             };
-            
+
             // Update error status
             {
                 let mut app_state = state.lock().await;
                 app_state.auth_status = auth_status;
             }
-            
+
             Err(error_msg)
-        }
+        },
     }
 }
 
 /// Logout command
 #[tauri::command]
-pub async fn logout(
-    state: State<'_, Arc<Mutex<AppState>>>,
-) -> Result<(), String> {
+pub async fn logout(state: State<'_, Arc<Mutex<AppState>>>) -> Result<(), String> {
     info!("Starting logout process");
-    
-    match CliBridge::execute_logout().await {
+
+    // Create CLI bridge instance
+    let cli_bridge = match CliBridge::new().await {
+        Ok(bridge) => bridge,
+        Err(e) => {
+            let error_msg = format!("Failed to initialize CLI bridge: {}", e);
+            error!("{}", error_msg);
+            return Err(error_msg);
+        },
+    };
+
+    match cli_bridge.execute_logout().await {
         Ok(_) => {
             // Reset authentication status
             {
@@ -75,23 +99,73 @@ pub async fn logout(
                 app_state.conversations.clear();
                 app_state.current_conversation_id = None;
             }
-            
+
             info!("Logout successful");
             Ok(())
-        }
+        },
         Err(e) => {
             let error_msg = format!("Logout failed: {}", e);
             error!("{}", error_msg);
             Err(error_msg)
-        }
+        },
     }
 }
 
 /// Get authentication status command
 #[tauri::command]
-pub async fn get_auth_status(
-    state: State<'_, Arc<Mutex<AppState>>>,
-) -> Result<AuthStatus, String> {
-    let app_state = state.lock().await;
-    Ok(app_state.auth_status.clone())
+pub async fn get_auth_status(state: State<'_, Arc<Mutex<AppState>>>) -> Result<AuthStatus, String> {
+    info!("Getting authentication status");
+
+    // Create CLI bridge instance to check actual auth status
+    let cli_bridge = match CliBridge::new().await {
+        Ok(bridge) => bridge,
+        Err(e) => {
+            let error_msg = format!("Failed to initialize CLI bridge: {}", e);
+            error!("{}", error_msg);
+            return Ok(AuthStatus::Error { message: error_msg });
+        },
+    };
+
+    // Check actual authentication status from CLI
+    match cli_bridge.check_auth_status().await {
+        Ok(Some(auth_info)) => {
+            let auth_status = AuthStatus::Authenticated {
+                username: auth_info.username,
+                provider: auth_info.provider,
+            };
+
+            // Update app state with current status
+            {
+                let mut app_state = state.lock().await;
+                app_state.auth_status = auth_status.clone();
+            }
+
+            Ok(auth_status)
+        },
+        Ok(None) => {
+            let auth_status = AuthStatus::NotAuthenticated;
+
+            // Update app state
+            {
+                let mut app_state = state.lock().await;
+                app_state.auth_status = auth_status.clone();
+            }
+
+            Ok(auth_status)
+        },
+        Err(e) => {
+            let error_msg = format!("Failed to check authentication status: {}", e);
+            error!("{}", error_msg);
+
+            let auth_status = AuthStatus::Error { message: error_msg };
+
+            // Update app state
+            {
+                let mut app_state = state.lock().await;
+                app_state.auth_status = auth_status.clone();
+            }
+
+            Ok(auth_status)
+        },
+    }
 }

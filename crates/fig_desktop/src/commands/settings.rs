@@ -6,7 +6,6 @@ use tauri::State;
 use tracing::{info, error};
 
 use crate::state::{AppState, AppSettings};
-use super::GuiError;
 
 /// Get settings command
 #[tauri::command]

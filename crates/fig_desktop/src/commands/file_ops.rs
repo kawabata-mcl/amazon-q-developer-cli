@@ -1,10 +1,9 @@
 /// File operation related Tauri commands
 
 use std::path::Path;
-use tauri::State;
 use tracing::{info, error};
 
-use super::{GuiError, FileContent};
+use super::FileContent;
 
 /// Read file content command
 #[tauri::command]
