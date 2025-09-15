@@ -2,15 +2,24 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth';
 import { ROUTES } from '@/lib/constants';
 
 export default function Home() {
   const router = useRouter();
+  const { isAuthenticated, isAuthenticating } = useAuth();
 
   useEffect(() => {
-    // Redirect to chat page as the main interface
-    router.push(ROUTES.CHAT);
-  }, [router]);
+    // Wait for auth check to complete
+    if (isAuthenticating) return;
+    
+    // Redirect based on authentication status
+    if (isAuthenticated) {
+      router.push(ROUTES.CHAT);
+    } else {
+      router.push('/auth');
+    }
+  }, [router, isAuthenticated, isAuthenticating]);
 
   return (
     <div className="flex items-center justify-center min-h-screen">

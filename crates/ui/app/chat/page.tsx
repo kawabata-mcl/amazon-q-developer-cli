@@ -1,62 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getAuthStatusCommand } from '@/lib/tauri';
+import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainLayout } from '@/components/layout';
-import { Loading, Card, CardContent, Button } from '@/components/ui';
-import type { AuthStatus } from '@/types/auth';
+import { Card, CardContent, Button } from '@/components/ui';
 
-export default function ChatPage() {
-  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      const status = await getAuthStatusCommand();
-      setAuthStatus(status);
-    } catch (error) {
-      console.error('Failed to check auth status:', error);
-      setAuthStatus({ isAuthenticated: false, error: 'Failed to check authentication status' });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loading text="Checking authentication status..." />
-      </div>
-    );
-  }
-
-  if (!authStatus?.isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="max-w-md mx-auto">
-          <CardContent className="p-6 text-center">
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
-              Amazon Q Desktop
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              You need to log in to use Amazon Q Developer.
-            </p>
-            <Button
-              onClick={() => window.location.href = '/auth'}
-              className="w-full"
-            >
-              Go to Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+function ChatPageContent() {
   const handleNewChat = () => {
     console.log('New chat clicked');
   };
@@ -69,7 +17,6 @@ export default function ChatPage() {
     <MainLayout
       title="Amazon Q Developer"
       connectionStatus="connected"
-      authStatus="authenticated"
       lastActivity={new Date()}
       onNewChat={handleNewChat}
       onSettingsClick={handleSettingsClick}
@@ -151,5 +98,13 @@ export default function ChatPage() {
         </div>
       </div>
     </MainLayout>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <AuthGuard>
+      <ChatPageContent />
+    </AuthGuard>
   );
 }

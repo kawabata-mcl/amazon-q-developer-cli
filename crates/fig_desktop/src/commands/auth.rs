@@ -31,10 +31,10 @@ pub async fn login(state: State<'_, Arc<Mutex<AppState>>>) -> Result<AuthStatus,
 
             {
                 let mut app_state = state.lock().await;
-                app_state.auth_status = auth_status;
+                app_state.auth_status = auth_status.clone();
             }
 
-            return Err(error_msg);
+            return Ok(auth_status);
         },
     };
 
@@ -66,10 +66,10 @@ pub async fn login(state: State<'_, Arc<Mutex<AppState>>>) -> Result<AuthStatus,
             // Update error status
             {
                 let mut app_state = state.lock().await;
-                app_state.auth_status = auth_status;
+                app_state.auth_status = auth_status.clone();
             }
 
-            Err(error_msg)
+            Ok(auth_status)
         },
     }
 }

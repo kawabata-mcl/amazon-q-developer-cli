@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { AuthGuard } from '@/components/auth/auth-guard';
 import { getSettingsCommand, saveSettingsCommand } from '@/lib/tauri';
 import type { AppSettings } from '@/types/common';
 
-export default function SettingsPage() {
+function SettingsPageContent() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -300,5 +301,13 @@ export default function SettingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <AuthGuard>
+      <SettingsPageContent />
+    </AuthGuard>
   );
 }

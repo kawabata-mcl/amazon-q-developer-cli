@@ -5,7 +5,19 @@ import type { AppSettings } from '@/types/common';
 
 // Authentication commands
 export async function loginCommand(): Promise<LoginResponse> {
-  return await invoke('login');
+  try {
+    const status = await invoke<AuthStatus>('login');
+    return {
+      success: true,
+      status,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: { type: 'Error', message: error as string },
+      error: error as string,
+    };
+  }
 }
 
 export async function logoutCommand(): Promise<void> {

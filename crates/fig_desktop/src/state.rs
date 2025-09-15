@@ -79,6 +79,7 @@ impl Default for AppState {
 
 /// Enum representing authentication status
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum AuthStatus {
     /// Not authenticated
     NotAuthenticated,

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/use-auth"
 import { 
   Wifi, 
   WifiOff, 
@@ -14,18 +15,17 @@ import {
 
 export interface StatusBarProps {
   connectionStatus?: 'connected' | 'disconnected' | 'connecting'
-  authStatus?: 'authenticated' | 'unauthenticated' | 'pending'
   lastActivity?: Date
   className?: string
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({
   connectionStatus = 'connected',
-  authStatus = 'authenticated',
   lastActivity,
   className
 }) => {
   const [currentTime, setCurrentTime] = React.useState(new Date())
+  const { status, isAuthenticating, user } = useAuth()
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -49,15 +49,18 @@ const StatusBar: React.FC<StatusBarProps> = ({
   }
 
   const getAuthIcon = () => {
-    switch (authStatus) {
-      case 'authenticated':
+    if (isAuthenticating) {
+      return <AlertCircle className="h-4 w-4 animate-pulse text-yellow-600 dark:text-yellow-400" />
+    }
+
+    switch (status.type) {
+      case 'Authenticated':
         return <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-      case 'unauthenticated':
+      case 'Error':
         return <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-      case 'pending':
-        return <AlertCircle className="h-4 w-4 animate-pulse text-yellow-600 dark:text-yellow-400" />
+      case 'NotAuthenticated':
       default:
-        return <XCircle className="h-4 w-4 text-gray-400" />
+        return <XCircle className="h-4 w-4 text-gray-600 dark:text-gray-400" />
     }
   }
 
@@ -75,15 +78,18 @@ const StatusBar: React.FC<StatusBarProps> = ({
   }
 
   const getAuthText = () => {
-    switch (authStatus) {
-      case 'authenticated':
-        return 'Authenticated'
-      case 'unauthenticated':
-        return 'Not authenticated'
-      case 'pending':
-        return 'Authenticating...'
+    if (isAuthenticating) {
+      return 'Authenticating...'
+    }
+
+    switch (status.type) {
+      case 'Authenticated':
+        return user ? `${user.username}` : 'Authenticated'
+      case 'Error':
+        return 'Auth Error'
+      case 'NotAuthenticated':
       default:
-        return 'Unknown'
+        return 'Not authenticated'
     }
   }
 
