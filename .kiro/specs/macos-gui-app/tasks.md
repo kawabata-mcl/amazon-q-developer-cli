@@ -6,7 +6,7 @@
   - 既存のchat-cliクレートとの依存関係の設定
   - _Requirements: 1.1, 3.1_
 
-- [-] 2. Next.jsフロントエンドの基盤構築
+- [x] 2. Next.jsフロントエンドの基盤構築
   - [x] 2.1 Next.jsプロジェクトの初期化と設定
     - Next.jsの初期セットアップを実施しているので、ディレクトリを確認し、作業内容を決定する
     - package.jsonの作成と依存関係の設定
@@ -21,7 +21,7 @@
     - app/settings/page.tsxで設定ページの実装
     - _Requirements: 1.1, 4.2_
 
-- [-] 3. Rust バックエンドのTauriコマンド実装
+- [x] 3. Rust バックエンドのTauriコマンド実装
   - [x] 3.1 認証関連コマンドの実装
     - login、logout、get_auth_statusコマンドの作成
     - 既存のauth moduleとの統合
@@ -34,7 +34,7 @@
     - ストリーミングレスポンスの実装
     - _Requirements: 1.2, 2.2, 5.1_
 
-  - [ ] 3.3 ファイル操作コマンドの実装
+  - [x] 3.3 ファイル操作コマンドの実装
     - read_file_content、save_file_contentコマンドの作成
     - セキュアなファイルアクセスの実装
     - ファイルドラッグ&ドロップサポート

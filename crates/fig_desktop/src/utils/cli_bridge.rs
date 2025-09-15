@@ -7,11 +7,14 @@ use tracing::{error, info, warn};
 
 use chat_cli::auth::builder_id::{BuilderIdToken, TokenType};
 use chat_cli::auth::{is_logged_in, logout as cli_logout};
+use chat_cli::cli::Agent;
+use chat_cli::cli::chat::context::{ContextFilePath, ContextManager};
 use chat_cli::os::Os;
 
 /// CLI bridge implementation
 pub struct CliBridge {
     os: Arc<Mutex<Os>>,
+    context_manager: Arc<Mutex<ContextManager>>,
     // Reserved for future integration with chat-cli conversation management
     // conversation_states: Arc<Mutex<std::collections::HashMap<String, ConversationState>>>,
 }
@@ -59,8 +62,14 @@ impl CliBridge {
             .await
             .map_err(|e| CliBridgeError::InternalError(format!("Failed to initialize OS: {}", e)))?;
 
+        // Build a minimal Agent so we can construct ContextManager safely
+        let agent = Agent::default();
+        let context_manager = ContextManager::from_agent(&agent, 10 * 1024 * 1024)
+            .map_err(|e| CliBridgeError::InternalError(format!("Failed to initialize ContextManager: {}", e)))?;
+
         Ok(Self {
             os: Arc::new(Mutex::new(os)),
+            context_manager: Arc::new(Mutex::new(context_manager)),
             // conversation_states: Arc::new(Mutex::new(std::collections::HashMap::new())),
         })
     }
@@ -325,6 +334,75 @@ impl CliBridge {
         });
 
         Ok(config)
+    }
+
+    /// Add file to context using CLI functionality
+    pub async fn add_file_to_context(&self, file_path: String) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Adding file to context via CLI bridge: {}", file_path);
+
+        let mut os = self.os.lock().await;
+        let mut context_manager = self.context_manager.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        // Add path to context manager
+        context_manager.add_paths(&os, vec![file_path], false).await?;
+
+        info!("Successfully added file to context");
+        Ok(())
+    }
+
+    /// Get current context files
+    pub async fn get_context_files(&self) -> Result<Vec<(String, String)>, Box<dyn std::error::Error + Send + Sync>> {
+        info!("Getting context files via CLI bridge");
+
+        let mut os = self.os.lock().await;
+        let context_manager = self.context_manager.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        // Collect and drop files if exceeding limit
+        let (files, _dropped_files) = context_manager.collect_context_files_with_limit(&os).await?;
+        Ok(files)
+    }
+
+    /// Remove file from context
+    pub async fn remove_file_from_context(
+        &self,
+        file_path: String,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Removing file from context via CLI bridge: {}", file_path);
+
+        let mut context_manager = self.context_manager.lock().await;
+
+        // Remove the path from context manager
+        context_manager.paths.retain(|path| match path {
+            ContextFilePath::Session(p) | ContextFilePath::Agent(p) => p != &file_path,
+        });
+
+        info!("Successfully removed file from context");
+        Ok(())
+    }
+
+    /// Clear all context files
+    pub async fn clear_context(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Clearing all context files via CLI bridge");
+
+        let mut context_manager = self.context_manager.lock().await;
+        context_manager.paths.clear();
+
+        info!("Successfully cleared all context files");
+        Ok(())
     }
 }
 

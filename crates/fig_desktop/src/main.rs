@@ -12,6 +12,7 @@ pub mod utils;
 
 use commands::*;
 use state::AppState;
+use utils::cli_bridge::CliBridge;
 
 /// Main function for the Tauri application
 #[tokio::main]
@@ -23,10 +24,20 @@ async fn main() {
 
     // Initialize application state
     let app_state = Arc::new(Mutex::new(AppState::new()));
+    
+    // Initialize CLI bridge
+    let cli_bridge = match CliBridge::new().await {
+        Ok(bridge) => Arc::new(Mutex::new(bridge)),
+        Err(e) => {
+            eprintln!("Failed to initialize CLI bridge: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     // Build and run Tauri application
     tauri::Builder::default()
         .manage(app_state)
+        .manage(cli_bridge)
         .invoke_handler(tauri::generate_handler![
             // Authentication commands
             auth::login,
@@ -43,6 +54,10 @@ async fn main() {
             file_ops::read_file_content,
             file_ops::save_file_content,
             file_ops::add_file_context,
+            file_ops::add_file_to_context_by_path,
+            file_ops::get_context_files,
+            file_ops::remove_file_from_context,
+            file_ops::clear_context,
             // Settings commands
             settings::get_settings,
             settings::update_settings,
