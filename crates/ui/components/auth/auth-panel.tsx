@@ -144,7 +144,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
         {!isAuthenticated && !isAuthenticating && (
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
             <p>
-              Click "Login" to authenticate with Amazon Q Developer. 
+              Click &quot;Login&quot; to authenticate with Amazon Q Developer. 
               This will open your default browser for the authentication process.
             </p>
           </div>

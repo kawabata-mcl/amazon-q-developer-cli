@@ -42,6 +42,10 @@ echo "[postCreate] UI deps"
 if [ -f "crates/ui/package.json" ]; then
   pushd crates/ui >/dev/null || exit 1
   npm ci 2>/dev/null || npm install 2>/dev/null || echo "npm install failed, continuing..."
+  # Ensure test typings are available in devcontainer
+  npm pkg set devDependencies.@types/jest=@latest 1>/dev/null
+  npm pkg set devDependencies.@testing-library/user-event=@latest 1>/dev/null
+  npm install --silent 1>/dev/null || true
   popd >/dev/null || true
 fi
 

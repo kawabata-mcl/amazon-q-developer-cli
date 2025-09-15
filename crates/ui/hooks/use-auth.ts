@@ -20,12 +20,12 @@ export function useAuth() {
   }, [checkAuthStatus]);
 
   // Helper functions
-  const isAuthenticated = status.type === 'Authenticated';
-  const isAuthenticating = status.type === 'Authenticating' || isLoading;
-  const hasError = status.type === 'Error' || error !== null;
+  const isAuthenticated = status?.type === 'Authenticated';
+  const isAuthenticating = status?.type === 'Authenticating' || isLoading;
+  const hasError = status?.type === 'Error' || error !== null;
   
   const getUser = () => {
-    if (status.type === 'Authenticated') {
+    if (status?.type === 'Authenticated') {
       return {
         username: status.username,
         provider: status.provider,
@@ -35,7 +35,7 @@ export function useAuth() {
   };
 
   const getErrorMessage = () => {
-    if (status.type === 'Error') {
+    if (status?.type === 'Error') {
       return status.message;
     }
     return error;

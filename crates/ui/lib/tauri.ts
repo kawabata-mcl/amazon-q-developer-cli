@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/tauri';
 import type { AuthStatus, LoginResponse } from '@/types/auth';
-import type { ChatMessage, SendMessageRequest, SendMessageResponse, ChatConversation } from '@/types/chat';
+import type { ChatMessage, SendMessageRequest, ChatConversation } from '@/types/chat';
 import type { AppSettings } from '@/types/common';
 
 // Authentication commands
@@ -29,16 +29,16 @@ export async function getAuthStatusCommand(): Promise<AuthStatus> {
 }
 
 // Chat commands
-export async function sendMessageCommand(request: SendMessageRequest): Promise<SendMessageResponse> {
+export async function sendMessageCommand(request: SendMessageRequest): Promise<unknown> {
   return await invoke('send_message', {
     message: request.message,
-    conversationId: request.conversationId,
+    conversation_id: request.conversationId,
     context: request.context,
   });
 }
 
 export async function getConversationHistoryCommand(conversationId: string): Promise<ChatMessage[]> {
-  return await invoke('get_conversation_history', { conversationId });
+  return await invoke('get_conversation_history', { conversation_id: conversationId });
 }
 
 export async function startNewConversationCommand(): Promise<string> {
@@ -46,20 +46,20 @@ export async function startNewConversationCommand(): Promise<string> {
 }
 
 export async function getConversationsCommand(): Promise<ChatConversation[]> {
-  return await invoke('get_conversations');
+  return await invoke('get_all_conversations');
 }
 
 // File operations commands
-export async function readFileContentCommand(filePath: string): Promise<string> {
-  return await invoke('read_file_content', { filePath });
+export async function readFileContentCommand(filePath: string): Promise<{ path: string; content: string; size: number; mime_type?: string | null }> {
+  return await invoke('read_file_content', { file_path: filePath });
 }
 
 export async function saveFileContentCommand(filePath: string, content: string): Promise<void> {
-  return await invoke('save_file_content', { filePath, content });
+  return await invoke('save_file_content', { file_path: filePath, content });
 }
 
 export async function addFileContextCommand(fileName: string, content: string): Promise<void> {
-  return await invoke('add_file_context', { fileName, content });
+  return await invoke('add_file_context', { file_name: fileName, content });
 }
 
 // Settings commands
@@ -68,5 +68,5 @@ export async function getSettingsCommand(): Promise<Record<string, unknown>> {
 }
 
 export async function saveSettingsCommand(settings: AppSettings): Promise<void> {
-  return await invoke('save_settings', { settings });
+  return await invoke('update_settings', { settings });
 }
