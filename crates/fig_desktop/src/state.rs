@@ -53,6 +53,22 @@ impl AppState {
             conversation.updated_at = OffsetDateTime::now_utc();
         }
     }
+
+    /// Ensure a conversation exists, create if it doesn't
+    pub fn ensure_conversation_exists(&mut self, conversation_id: &str) {
+        if !self.conversations.contains_key(conversation_id) {
+            let conversation = GuiConversationState {
+                id: conversation_id.to_string(),
+                title: "New Conversation".to_string(),
+                messages: Vec::new(),
+                agent: None,
+                model: None,
+                created_at: OffsetDateTime::now_utc(),
+                updated_at: OffsetDateTime::now_utc(),
+            };
+            self.conversations.insert(conversation_id.to_string(), conversation);
+        }
+    }
 }
 
 impl Default for AppState {

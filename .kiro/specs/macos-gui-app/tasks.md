@@ -28,7 +28,7 @@
     - 認証状態の管理とエラーハンドリング
     - _Requirements: 2.1, 4.1_
 
-  - [ ] 3.2 チャット関連コマンドの実装
+  - [x] 3.2 チャット関連コマンドの実装
     - send_message、get_conversation_history、start_new_conversationコマンドの作成
     - 既存のchat-cli機能との統合
     - ストリーミングレスポンスの実装

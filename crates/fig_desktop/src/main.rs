@@ -34,6 +34,7 @@ async fn main() {
             auth::get_auth_status,
             // Chat commands
             chat::send_message,
+            chat::send_message_stream,
             chat::get_conversation_history,
             chat::start_new_conversation,
             chat::get_all_conversations,

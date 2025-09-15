@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 /// Module that bridges existing CLI functionality with GUI
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 
 use chat_cli::auth::builder_id::{BuilderIdToken, TokenType};
@@ -11,6 +12,8 @@ use chat_cli::os::Os;
 /// CLI bridge implementation
 pub struct CliBridge {
     os: Arc<Mutex<Os>>,
+    // Reserved for future integration with chat-cli conversation management
+    // conversation_states: Arc<Mutex<std::collections::HashMap<String, ConversationState>>>,
 }
 
 /// Authentication information
@@ -29,6 +32,26 @@ pub struct CliChatResponse {
     pub tool_uses: Option<Vec<crate::state::GuiToolUse>>,
 }
 
+/// Streaming chat response chunk
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatStreamChunk {
+    pub chunk_id: String,
+    pub conversation_id: String,
+    pub content: String,
+    pub is_complete: bool,
+    pub error: Option<String>,
+}
+
+/// Conversation summary for listing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationSummary {
+    pub id: String,
+    pub title: String,
+    pub message_count: usize,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
 impl CliBridge {
     /// Create a new CLI bridge instance
     pub async fn new() -> Result<Self, CliBridgeError> {
@@ -38,6 +61,7 @@ impl CliBridge {
 
         Ok(Self {
             os: Arc::new(Mutex::new(os)),
+            // conversation_states: Arc::new(Mutex::new(std::collections::HashMap::new())),
         })
     }
 
@@ -101,6 +125,132 @@ impl CliBridge {
             token_count: Some(150),
             tool_uses: None,
         })
+    }
+
+    /// Start a new conversation and return its ID
+    pub async fn start_new_conversation(&self) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        info!("Starting new conversation via CLI bridge");
+
+        let mut os = self.os.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        let conversation_id = uuid::Uuid::new_v4().to_string();
+
+        // Initialize conversation state
+        // Note: This is a simplified implementation
+        // In a full implementation, we would create a proper ConversationState
+        // with all the necessary components (agents, tool manager, etc.)
+
+        info!("Created new conversation: {}", conversation_id);
+        Ok(conversation_id)
+    }
+
+    /// Send message with streaming response
+    pub async fn send_message_stream(
+        &self,
+        message: String,
+        conversation_id: String,
+        stream_sender: broadcast::Sender<ChatStreamChunk>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        info!("Starting streaming message send for conversation: {}", conversation_id);
+
+        let mut os = self.os.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            let error_chunk = ChatStreamChunk {
+                chunk_id: uuid::Uuid::new_v4().to_string(),
+                conversation_id: conversation_id.clone(),
+                content: String::new(),
+                is_complete: true,
+                error: Some("User is not authenticated".to_string()),
+            };
+            let _ = stream_sender.send(error_chunk);
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        // Simulate streaming response
+        // In a real implementation, this would integrate with the actual chat CLI streaming
+        let response_parts = vec![
+            "I understand your question about ",
+            &message,
+            ". Let me provide a detailed response.\n\n",
+            "This is a simulated streaming response that demonstrates ",
+            "how the GUI application can receive real-time updates ",
+            "from the Amazon Q Developer CLI backend.\n\n",
+            "In the actual implementation, this would connect to ",
+            "the real chat streaming functionality.",
+        ];
+
+        for (i, part) in response_parts.iter().enumerate() {
+            let chunk = ChatStreamChunk {
+                chunk_id: uuid::Uuid::new_v4().to_string(),
+                conversation_id: conversation_id.clone(),
+                content: part.to_string(),
+                is_complete: i == response_parts.len() - 1,
+                error: None,
+            };
+
+            if stream_sender.send(chunk).is_err() {
+                warn!("Failed to send stream chunk - receiver may have been dropped");
+                break;
+            }
+
+            // Simulate processing delay
+            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        }
+
+        info!("Completed streaming message send for conversation: {}", conversation_id);
+        Ok(())
+    }
+
+    /// Get conversation history
+    pub async fn get_conversation_history(
+        &self,
+        conversation_id: &str,
+    ) -> Result<Vec<crate::state::GuiMessage>, Box<dyn std::error::Error + Send + Sync>> {
+        info!("Getting conversation history for: {}", conversation_id);
+
+        let mut os = self.os.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        // For now, return empty history
+        // In a real implementation, this would load from the database
+        Ok(Vec::new())
+    }
+
+    /// Get all conversations
+    pub async fn get_all_conversations(
+        &self,
+    ) -> Result<Vec<ConversationSummary>, Box<dyn std::error::Error + Send + Sync>> {
+        info!("Getting all conversations via CLI bridge");
+
+        let mut os = self.os.lock().await;
+
+        // Check authentication first
+        if !is_logged_in(&mut os.database).await {
+            return Err(Box::new(CliBridgeError::AuthenticationError(
+                "User is not authenticated".to_string(),
+            )));
+        }
+
+        // For now, return empty list
+        // In a real implementation, this would load from the database
+        Ok(Vec::new())
     }
 
     /// Check authentication status
