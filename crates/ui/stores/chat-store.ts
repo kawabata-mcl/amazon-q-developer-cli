@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { ChatConversation, ChatMessage, SendMessageRequest } from '@/types/chat';
+import type { 
+  ChatConversation, 
+  ChatMessage, 
+  ChatError, 
+  StreamChunk,
+  MessageStatus 
+} from '@/types/chat';
 
 interface ChatState {
   // Current conversation state
@@ -11,15 +17,23 @@ interface ChatState {
   // UI state
   isLoading: boolean;
   isStreaming: boolean;
-  error: string | null;
+  error: ChatError | null;
+  
+  // Message state tracking
+  pendingMessages: Map<string, ChatMessage>;
   
   // Actions
   sendMessage: (message: string, conversationId?: string) => Promise<void>;
+  retryMessage: (messageId: string) => Promise<void>;
   startNewConversation: () => Promise<string>;
   loadConversation: (conversationId: string) => Promise<void>;
   loadConversationHistory: () => Promise<void>;
   setCurrentConversation: (conversation: ChatConversation | null) => void;
   clearError: () => void;
+  
+  // Internal helpers
+  updateMessageStatus: (messageId: string, status: MessageStatus, error?: string) => void;
+  addMessageToConversation: (conversationId: string, message: ChatMessage) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -29,91 +43,157 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: false,
   isStreaming: false,
   error: null,
+  pendingMessages: new Map(),
 
   // Send a message to the current conversation
   sendMessage: async (message: string, conversationId?: string) => {
     const state = get();
     
+    if (!message.trim()) {
+      throw new Error('Message cannot be empty');
+    }
+
+    // Generate unique IDs
+    const userMessageId = `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const assistantMessageId = `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
     try {
-      set({ isLoading: true, isStreaming: true, error: null });
+      set({ isLoading: true, error: null });
 
       // Use existing conversation ID or create new one
-      const targetConversationId = conversationId || state.currentConversation?.id;
+      let targetConversationId = conversationId || state.currentConversation?.id;
+      if (!targetConversationId) {
+        // Ensure a conversation exists before sending/streaming
+        try {
+          targetConversationId = await invoke<string>('start_new_conversation');
+          set({
+            currentConversation: {
+              id: targetConversationId,
+              title: 'New Conversation',
+              messages: [],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        } catch {
+          throw new Error('Failed to start a new conversation');
+        }
+      }
 
-      const request: SendMessageRequest = {
-        message,
-        conversationId: targetConversationId,
-      };
-
-      // Add user message to current conversation immediately
+      // Create user message with sending status
       const userMessage: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: userMessageId,
         role: 'user',
         content: message,
         timestamp: new Date(),
+        status: 'sending',
       };
 
-      // Update current conversation with user message
-      if (state.currentConversation) {
-        const updatedConversation = {
-          ...state.currentConversation,
-          messages: [...state.currentConversation.messages, userMessage],
-          updatedAt: new Date(),
-        };
-        set({ currentConversation: updatedConversation });
-      }
+      // Add user message to conversation immediately
+      get().addMessageToConversation(targetConversationId, userMessage);
 
-      // Prepare streaming listener
+      // Update user message status to sent
+      get().updateMessageStatus(userMessageId, 'sent');
+
+      // Prepare streaming
+      set({ isStreaming: true });
       let unlisten: UnlistenFn | null = null;
-      let assistantMessageId = `assistant-${Date.now()}`;
       let accumulated = '';
+      let streamError: string | null = null;
 
       try {
-        unlisten = await listen<any>('message_chunk', (event) => {
-          const chunk = event.payload as any;
-          if (!chunk || (chunk.conversation_id && state.currentConversation && chunk.conversation_id !== state.currentConversation.id)) {
+        // Listen for streaming chunks
+        unlisten = await listen<StreamChunk>('message_chunk', (event) => {
+          const chunk = event.payload;
+          
+          // Check if chunk belongs to current conversation
+          const latestState = get();
+          if (chunk.conversation_id && 
+              latestState.currentConversation && 
+              chunk.conversation_id !== latestState.currentConversation.id) {
             return;
           }
 
+          // Handle error in chunk
+          if (chunk.error) {
+            streamError = chunk.error;
+            const latest = get();
+            const conv = latest.currentConversation;
+            if (conv) {
+              const existing = conv.messages.find(m => m.id === assistantMessageId);
+              if (existing) {
+                get().updateMessageStatus(assistantMessageId, 'failed', chunk.error);
+              } else {
+                const assistantMessage: ChatMessage = {
+                  id: assistantMessageId,
+                  role: 'assistant',
+                  content: '',
+                  timestamp: new Date(),
+                  status: 'failed',
+                  error: chunk.error,
+                };
+                get().addMessageToConversation(conv.id, assistantMessage);
+              }
+            }
+            return;
+          }
+
+          // Accumulate content
           accumulated += chunk.content || '';
 
-          // Append or update assistant message
-          set((s) => {
-            const base = s.currentConversation ?? {
-              id: chunk.conversation_id || state.currentConversation?.id || `conv-${Date.now()}`,
-              title: message.slice(0, 50) + (message.length > 50 ? '...' : ''),
-              messages: [userMessage],
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            } as ChatConversation;
+          // Update or create assistant message
+          const currentState = get();
+          const conversation = currentState.currentConversation;
+          
+          if (conversation) {
+            const existingMessage = conversation.messages.find(m => m.id === assistantMessageId);
+            
+            if (existingMessage) {
+              // Update existing message
+              get().updateMessageStatus(assistantMessageId, 'streaming');
+              set((s) => ({
+                currentConversation: s.currentConversation ? {
+                  ...s.currentConversation,
+                  messages: s.currentConversation.messages.map(m => 
+                    m.id === assistantMessageId 
+                      ? { ...m, content: accumulated, timestamp: new Date() }
+                      : m
+                  ),
+                  updatedAt: new Date(),
+                } : null,
+              }));
+            } else {
+              // Create new assistant message
+              const assistantMessage: ChatMessage = {
+                id: assistantMessageId,
+                role: 'assistant',
+                content: accumulated,
+                timestamp: new Date(),
+                status: 'streaming',
+              };
+              get().addMessageToConversation(conversation.id, assistantMessage);
+            }
+          }
 
-            const exists = base.messages.find((m) => m.id === assistantMessageId);
-            const assistantMsg: ChatMessage = exists ? {
-              ...exists,
-              content: accumulated,
-              timestamp: new Date(),
-            } : {
-              id: assistantMessageId,
-              role: 'assistant',
-              content: accumulated,
-              timestamp: new Date(),
-            };
-
-            const nextMessages = exists
-              ? base.messages.map((m) => (m.id === assistantMessageId ? assistantMsg : m))
-              : [...base.messages, assistantMsg];
-
-            return {
-              currentConversation: {
-                ...base,
-                messages: nextMessages,
-                updatedAt: new Date(),
-              },
-            };
-          });
-
+          // Handle completion
           if (chunk.is_complete) {
-            set({ isStreaming: false, isLoading: false });
+            if (streamError) {
+              get().updateMessageStatus(assistantMessageId, 'failed', streamError);
+              set({ 
+                error: {
+                  type: 'server',
+                  message: 'Failed to complete message',
+                  details: streamError,
+                  retryable: true,
+                },
+                isStreaming: false,
+                isLoading: false,
+              });
+            } else {
+              get().updateMessageStatus(assistantMessageId, 'completed');
+              set({ isStreaming: false, isLoading: false });
+            }
+            
             if (unlisten) {
               unlisten();
               unlisten = null;
@@ -121,13 +201,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         });
 
-        // Start streaming send
+        // Start streaming
         await invoke('send_message_stream', {
           message,
           conversation_id: targetConversationId,
         });
+
+      } catch (invokeError) {
+        // Handle invoke error
+        const errorMessage = invokeError instanceof Error ? invokeError.message : 'Unknown error';
+        get().updateMessageStatus(userMessageId, 'failed', errorMessage);
+        
+        throw new Error(`Failed to send message: ${errorMessage}`);
       } finally {
-        // Ensure cleanup on error
+        // Cleanup listener
         if (unlisten) {
           unlisten();
         }
@@ -135,11 +222,36 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
     } catch (error) {
       console.error('Failed to send message:', error);
+      
+      // Determine error type
+      let errorType: ChatError['type'] = 'unknown';
+      let retryable = true;
+      
+      if (error instanceof Error) {
+        if (error.message.includes('network') || error.message.includes('connection')) {
+          errorType = 'network';
+        } else if (error.message.includes('auth')) {
+          errorType = 'auth';
+          retryable = false;
+        } else if (error.message.includes('validation')) {
+          errorType = 'validation';
+          retryable = false;
+        } else if (error.message.includes('server')) {
+          errorType = 'server';
+        }
+      }
+
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to send message',
+        error: {
+          type: errorType,
+          message: error instanceof Error ? error.message : 'Failed to send message',
+          retryable,
+        },
         isLoading: false,
         isStreaming: false,
       });
+      
+      throw error;
     }
   },
 
@@ -167,7 +279,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('Failed to start new conversation:', error);
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to start new conversation',
+        error: {
+          type: 'server',
+          message: error instanceof Error ? error.message : 'Failed to start new conversation',
+          retryable: true,
+        },
         isLoading: false,
       });
       throw error;
@@ -203,7 +319,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('Failed to load conversation:', error);
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to load conversation',
+        error: {
+          type: 'server',
+          message: error instanceof Error ? error.message : 'Failed to load conversation',
+          retryable: true,
+        },
         isLoading: false,
       });
     }
@@ -212,8 +332,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Load conversation history
   loadConversationHistory: async () => {
     try {
-      const summaries = await invoke<any[]>('get_all_conversations');
-      const conversations: ChatConversation[] = (summaries || []).map((s) => ({
+      type ConversationSummary = { id: string; title?: string; created_at?: string; updated_at?: string };
+      const summaries = await invoke<ConversationSummary[]>('get_all_conversations');
+      const conversations: ChatConversation[] = (summaries || []).map((s: ConversationSummary) => ({
         id: s.id,
         title: s.title ?? 'Conversation',
         messages: [],
@@ -224,7 +345,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('Failed to load conversation history:', error);
       set({ 
-        error: error instanceof Error ? error.message : 'Failed to load conversation history'
+        error: {
+          type: 'server',
+          message: error instanceof Error ? error.message : 'Failed to load conversation history',
+          retryable: true,
+        }
       });
     }
   },
@@ -237,5 +362,83 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Clear error state
   clearError: () => {
     set({ error: null });
+  },
+
+  // Retry failed message
+  retryMessage: async (messageId: string) => {
+    const state = get();
+    const conversation = state.currentConversation;
+    
+    if (!conversation) {
+      throw new Error('No active conversation');
+    }
+
+    const message = conversation.messages.find(m => m.id === messageId);
+    if (!message || message.role !== 'user') {
+      throw new Error('Message not found or not retryable');
+    }
+
+    // Remove the failed message and any subsequent messages
+    const messageIndex = conversation.messages.findIndex(m => m.id === messageId);
+    const updatedMessages = conversation.messages.slice(0, messageIndex);
+    
+    set({
+      currentConversation: {
+        ...conversation,
+        messages: updatedMessages,
+        updatedAt: new Date(),
+      },
+    });
+
+    // Retry sending the message
+    await get().sendMessage(message.content, conversation.id);
+  },
+
+  // Update message status
+  updateMessageStatus: (messageId: string, status: MessageStatus, error?: string) => {
+    set((state) => ({
+      currentConversation: state.currentConversation ? {
+        ...state.currentConversation,
+        messages: state.currentConversation.messages.map(m => 
+          m.id === messageId 
+            ? { ...m, status, error, timestamp: new Date() }
+            : m
+        ),
+        updatedAt: new Date(),
+      } : null,
+    }));
+  },
+
+  // Add message to conversation
+  addMessageToConversation: (conversationId: string, message: ChatMessage) => {
+    set((state) => {
+      // If no current conversation or different conversation, create/update it
+      if (!state.currentConversation || state.currentConversation.id !== conversationId) {
+        const newConversation: ChatConversation = {
+          id: conversationId,
+          title: message.content.slice(0, 50) + (message.content.length > 50 ? '...' : ''),
+          messages: [message],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        
+        return {
+          currentConversation: newConversation,
+          conversations: [
+            ...state.conversations.filter(c => c.id !== conversationId),
+            newConversation,
+          ],
+        };
+      }
+
+      // Add to existing conversation
+      return {
+        currentConversation: {
+          ...state.currentConversation,
+          messages: [...state.currentConversation.messages, message],
+          updatedAt: new Date(),
+        },
+      };
+    });
   },
 }));

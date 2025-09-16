@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 interface MessageInputProps {
   onSendMessage: (message: string) => Promise<void>;
   disabled?: boolean;
+  isLoading?: boolean;
   placeholder?: string;
   className?: string;
 }
@@ -19,7 +20,8 @@ interface AttachedFile {
 
 export function MessageInput({ 
   onSendMessage, 
-  disabled = false, 
+  disabled = false,
+  isLoading = false,
   placeholder = "Type your message...",
   className = '' 
 }: MessageInputProps) {
@@ -51,24 +53,13 @@ export function MessageInput({
   };
 
   const handleSend = async () => {
-    if (!message.trim() || disabled) return;
+    if (!message.trim() || disabled || isLoading) return;
+
+    const messageToSend = message.trim();
+    const filesToSend = [...attachedFiles];
 
     try {
-      // For now, we'll just send the text message
-      // File attachment functionality can be enhanced later
-      let fullMessage = message.trim();
-      
-      if (attachedFiles.length > 0) {
-        fullMessage += '\n\nAttached files:\n';
-        attachedFiles.forEach(file => {
-          fullMessage += `- ${file.name} (${formatFileSize(file.size)})\n`;
-          fullMessage += `\`\`\`\n${file.content}\n\`\`\`\n`;
-        });
-      }
-
-      await onSendMessage(fullMessage);
-      
-      // Clear input after successful send
+      // Clear input immediately for better UX
       setMessage('');
       setAttachedFiles([]);
       
@@ -76,8 +67,26 @@ export function MessageInput({
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
+
+      // Prepare full message with attachments
+      let fullMessage = messageToSend;
+      
+      if (filesToSend.length > 0) {
+        fullMessage += '\n\nAttached files:\n';
+        filesToSend.forEach(file => {
+          fullMessage += `- ${file.name} (${formatFileSize(file.size)})\n`;
+          fullMessage += `\`\`\`\n${file.content}\n\`\`\`\n`;
+        });
+      }
+
+      await onSendMessage(fullMessage);
+      
     } catch (error) {
       console.error('Failed to send message:', error);
+      
+      // Restore message and files on error
+      setMessage(messageToSend);
+      setAttachedFiles(filesToSend);
     }
   };
 
@@ -204,9 +213,9 @@ export function MessageInput({
               value={message}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              disabled={disabled}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px]"
+              placeholder={isLoading ? "Sending message..." : placeholder}
+              disabled={disabled || isLoading}
+              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px] disabled:opacity-50"
               rows={1}
               data-testid="message-input"
             />
@@ -216,7 +225,7 @@ export function MessageInput({
             {/* File attachment button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={disabled}
+              disabled={disabled || isLoading}
               className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Attach file"
             >
@@ -226,11 +235,15 @@ export function MessageInput({
             {/* Send button */}
             <Button
               onClick={handleSend}
-              disabled={disabled || !message.trim()}
+              disabled={disabled || isLoading || !message.trim()}
               size="sm"
               data-testid="send-button"
             >
-              <Send className="w-4 h-4" />
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
             </Button>
           </div>
         </div>

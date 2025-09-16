@@ -1,17 +1,20 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Check, User, Bot } from 'lucide-react';
+import { Copy, Check, User, Bot, AlertCircle, RefreshCw, Clock, CheckCircle } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
+import { Button } from '@/components/ui/button';
 
 interface MessageItemProps {
   message: ChatMessage;
   isLatest?: boolean;
   className?: string;
+  onRetry?: (messageId: string) => Promise<void>;
 }
 
-export function MessageItem({ message, className = '' }: MessageItemProps) {
+export function MessageItem({ message, className = '', onRetry }: MessageItemProps) {
   const [copied, setCopied] = useState(false);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const handleCopy = async () => {
     try {
@@ -20,6 +23,19 @@ export function MessageItem({ message, className = '' }: MessageItemProps) {
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy message:', error);
+    }
+  };
+
+  const handleRetry = async () => {
+    if (!onRetry || isRetrying) return;
+    
+    try {
+      setIsRetrying(true);
+      await onRetry(message.id);
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+    } finally {
+      setIsRetrying(false);
     }
   };
 
@@ -33,6 +49,41 @@ export function MessageItem({ message, className = '' }: MessageItemProps) {
 
   const isUser = message.role === 'user';
   const isAssistant = message.role === 'assistant';
+  
+  // Status indicators
+  const getStatusIcon = () => {
+    switch (message.status) {
+      case 'sending':
+        return <Clock className="w-3 h-3 text-yellow-500 animate-pulse" />;
+      case 'sent':
+        return <CheckCircle className="w-3 h-3 text-green-500" />;
+      case 'streaming':
+        return <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />;
+      case 'completed':
+        return <CheckCircle className="w-3 h-3 text-green-500" />;
+      case 'failed':
+        return <AlertCircle className="w-3 h-3 text-red-500" />;
+      default:
+        return null;
+    }
+  };
+
+  const getStatusText = () => {
+    switch (message.status) {
+      case 'sending':
+        return 'Sending...';
+      case 'sent':
+        return 'Sent';
+      case 'streaming':
+        return 'Receiving...';
+      case 'completed':
+        return 'Completed';
+      case 'failed':
+        return message.error || 'Failed';
+      default:
+        return '';
+    }
+  };
 
   return (
     <div className={`flex items-start space-x-4 group ${className}`} data-testid="message-item">
@@ -62,6 +113,15 @@ export function MessageItem({ message, className = '' }: MessageItemProps) {
           <span className="text-xs text-gray-500 dark:text-gray-400">
             {formatTimestamp(message.timestamp)}
           </span>
+          {/* Status indicator */}
+          {message.status && (
+            <div className="flex items-center space-x-1">
+              {getStatusIcon()}
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {getStatusText()}
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="relative">
@@ -119,18 +179,45 @@ export function MessageItem({ message, className = '' }: MessageItemProps) {
             )}
           </div>
 
-          {/* Copy button */}
-          <button
-            onClick={handleCopy}
-            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
-            title="Copy message"
-          >
-            {copied ? (
-              <Check className="w-4 h-4 text-green-600" />
-            ) : (
-              <Copy className="w-4 h-4 text-gray-500" />
+          {/* Action buttons */}
+          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1">
+            {/* Retry button for failed user messages */}
+            {message.status === 'failed' && isUser && onRetry && (
+              <Button
+                onClick={handleRetry}
+                disabled={isRetrying}
+                size="sm"
+                variant="outline"
+                className="h-6 px-2"
+                title="Retry message"
+              >
+                <RefreshCw className={`w-3 h-3 ${isRetrying ? 'animate-spin' : ''}`} />
+              </Button>
             )}
-          </button>
+            
+            {/* Copy button */}
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+              title="Copy message"
+            >
+              {copied ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <Copy className="w-4 h-4 text-gray-500" />
+              )}
+            </button>
+          </div>
+
+          {/* Error message display */}
+          {message.status === 'failed' && message.error && (
+            <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded text-sm text-red-700 dark:text-red-300">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{message.error}</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

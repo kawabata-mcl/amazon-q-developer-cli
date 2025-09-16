@@ -18,9 +18,12 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
     isStreaming,
     error,
     hasMessages,
+    canRetry,
     sendMessage,
+    retryMessage,
     startNewConversation,
     clearError,
+    getErrorMessage,
   } = useChat();
 
   // Initialize with a new conversation if none exists
@@ -38,6 +41,14 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
     }
   };
 
+  const handleRetryMessage = async (messageId: string) => {
+    try {
+      await retryMessage(messageId);
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+    }
+  };
+
   const handleNewChat = async () => {
     try {
       await startNewConversation();
@@ -52,17 +63,36 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
       {error && (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 m-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <div className="text-red-600 dark:text-red-400 text-sm">
-                {error}
+            <div className="flex-1">
+              <div className="text-red-600 dark:text-red-400 text-sm font-medium mb-1">
+                {getErrorMessage(error)}
               </div>
+              {error.details && (
+                <div className="text-red-500 dark:text-red-400 text-xs">
+                  {error.details}
+                </div>
+              )}
             </div>
-            <button
-              onClick={clearError}
-              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200"
-            >
-              ×
-            </button>
+            <div className="flex items-center space-x-2">
+              {canRetry && (
+                <button
+                  onClick={() => {
+                    // For global errors, we might want to retry the last failed message
+                    // This would need to be implemented based on specific requirements
+                    console.log('Global retry not implemented yet');
+                  }}
+                  className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-sm underline"
+                >
+                  Retry
+                </button>
+              )}
+              <button
+                onClick={clearError}
+                className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-200 text-lg"
+              >
+                ×
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -73,6 +103,7 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
           <MessageList 
             messages={messages}
             isLoading={isStreaming}
+            onRetryMessage={handleRetryMessage}
           />
         ) : (
           <WelcomeScreen onNewChat={handleNewChat} />
@@ -84,6 +115,7 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
         <MessageInput
           onSendMessage={handleSendMessage}
           disabled={isLoading || isStreaming}
+          isLoading={isLoading || isStreaming}
           placeholder="Enter your questions or tasks for Amazon Q Developer..."
         />
       </div>

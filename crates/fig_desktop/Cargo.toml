@@ -45,6 +45,9 @@ time.workspace = true
 # File system operations
 dirs.workspace = true
 
+# Random number generation
+rand.workspace = true
+
 [features]
 # Enable Tauri's default features
 default = ["custom-protocol"]

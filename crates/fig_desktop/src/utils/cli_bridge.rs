@@ -4,6 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
+use rand;
 
 use chat_cli::auth::builder_id::{BuilderIdToken, TokenType};
 use chat_cli::auth::{is_logged_in, logout as cli_logout};
@@ -186,38 +187,62 @@ impl CliBridge {
             )));
         }
 
-        // Simulate streaming response
-        // In a real implementation, this would integrate with the actual chat CLI streaming
-        let response_parts = vec![
-            "I understand your question about ",
-            &message,
-            ". Let me provide a detailed response.\n\n",
-            "This is a simulated streaming response that demonstrates ",
-            "how the GUI application can receive real-time updates ",
-            "from the Amazon Q Developer CLI backend.\n\n",
-            "In the actual implementation, this would connect to ",
-            "the real chat streaming functionality.",
-        ];
+        // Drop the OS lock before starting the streaming task
+        drop(os);
 
-        for (i, part) in response_parts.iter().enumerate() {
-            let chunk = ChatStreamChunk {
-                chunk_id: uuid::Uuid::new_v4().to_string(),
-                conversation_id: conversation_id.clone(),
-                content: part.to_string(),
-                is_complete: i == response_parts.len() - 1,
-                error: None,
-            };
+        // Spawn streaming task to avoid blocking
+        let sender_clone = stream_sender.clone();
+        let conv_id_clone = conversation_id.clone();
+        let message_clone = message.clone();
 
-            if stream_sender.send(chunk).is_err() {
-                warn!("Failed to send stream chunk - receiver may have been dropped");
-                break;
+        tokio::spawn(async move {
+            // Simulate more realistic streaming with variable delays and potential errors
+            let response_parts = vec![
+                ("I understand your question about ", 100),
+                (&message_clone, 150),
+                (". Let me analyze this for you.\n\n", 200),
+                ("Based on your request, here's what I can help with:\n\n", 180),
+                ("1. **Code Analysis**: I can review and suggest improvements\n", 220),
+                ("2. **Implementation**: I can help write the necessary code\n", 190),
+                ("3. **Best Practices**: I can recommend optimal approaches\n\n", 210),
+                ("Would you like me to proceed with any specific aspect?", 150),
+            ];
+
+            let mut total_delay = 0u64;
+            for (i, (part, delay_ms)) in response_parts.iter().enumerate() {
+                // Simulate network/processing delay
+                tokio::time::sleep(tokio::time::Duration::from_millis(*delay_ms)).await;
+                total_delay += delay_ms;
+
+                // Simulate occasional network hiccups (5% chance)
+                if total_delay > 500 && rand::random::<f32>() < 0.05 {
+                    let error_chunk = ChatStreamChunk {
+                        chunk_id: uuid::Uuid::new_v4().to_string(),
+                        conversation_id: conv_id_clone.clone(),
+                        content: String::new(),
+                        is_complete: true,
+                        error: Some("Network timeout - please try again".to_string()),
+                    };
+                    let _ = sender_clone.send(error_chunk);
+                    return;
+                }
+
+                let chunk = ChatStreamChunk {
+                    chunk_id: uuid::Uuid::new_v4().to_string(),
+                    conversation_id: conv_id_clone.clone(),
+                    content: part.to_string(),
+                    is_complete: i == response_parts.len() - 1,
+                    error: None,
+                };
+
+                if sender_clone.send(chunk).is_err() {
+                    warn!("Failed to send stream chunk - receiver may have been dropped");
+                    break;
+                }
             }
+        });
 
-            // Simulate processing delay
-            tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
-        }
-
-        info!("Completed streaming message send for conversation: {}", conversation_id);
+        info!("Started streaming task for conversation: {}", conversation_id);
         Ok(())
     }
 

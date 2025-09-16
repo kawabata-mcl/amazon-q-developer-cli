@@ -9,9 +9,10 @@ interface MessageListProps {
   messages: ChatMessage[];
   isLoading?: boolean;
   className?: string;
+  onRetryMessage?: (messageId: string) => Promise<void>;
 }
 
-export function MessageList({ messages, isLoading = false, className = '' }: MessageListProps) {
+export function MessageList({ messages, isLoading = false, className = '', onRetryMessage }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -55,6 +56,7 @@ export function MessageList({ messages, isLoading = false, className = '' }: Mes
                 key={message.id}
                 message={message}
                 isLatest={index === messages.length - 1}
+                onRetry={onRetryMessage}
               />
             ))}
             

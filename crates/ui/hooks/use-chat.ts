@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { useChatStore } from '@/stores/chat-store';
+import type { ChatError } from '@/types/chat';
 
 /**
  * Custom hook for chat functionality
@@ -13,6 +14,7 @@ export function useChat() {
     isStreaming,
     error,
     sendMessage,
+    retryMessage,
     startNewConversation,
     loadConversation,
     loadConversationHistory,
@@ -33,6 +35,16 @@ export function useChat() {
       throw error;
     }
   }, [sendMessage]);
+
+  // Retry a failed message
+  const handleRetryMessage = useCallback(async (messageId: string) => {
+    try {
+      await retryMessage(messageId);
+    } catch (error) {
+      console.error('Failed to retry message:', error);
+      throw error;
+    }
+  }, [retryMessage]);
 
   // Start a new conversation with error handling
   const handleNewConversation = useCallback(async () => {
@@ -74,6 +86,27 @@ export function useChat() {
   // Check if there are any messages
   const hasMessages = messages.length > 0;
 
+  // Check if error is retryable
+  const canRetry = error?.retryable === true;
+
+  // Get error message for display
+  const getErrorMessage = useCallback((error: ChatError | null): string => {
+    if (!error) return '';
+    
+    switch (error.type) {
+      case 'network':
+        return 'Network connection failed. Please check your internet connection and try again.';
+      case 'auth':
+        return 'Authentication failed. Please log in again.';
+      case 'validation':
+        return 'Invalid input. Please check your message and try again.';
+      case 'server':
+        return 'Server error occurred. Please try again later.';
+      default:
+        return error.message || 'An unexpected error occurred.';
+    }
+  }, []);
+
   return {
     // State
     currentConversation,
@@ -84,13 +117,18 @@ export function useChat() {
     error,
     canSendMessage,
     hasMessages,
+    canRetry,
 
     // Actions
     sendMessage: handleSendMessage,
+    retryMessage: handleRetryMessage,
     startNewConversation: handleNewConversation,
     loadConversation: handleLoadConversation,
     refreshHistory: handleRefreshHistory,
     setCurrentConversation,
     clearError,
+    
+    // Helpers
+    getErrorMessage,
   };
 }

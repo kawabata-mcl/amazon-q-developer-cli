@@ -34,7 +34,9 @@ describe('ChatWindow', () => {
       loadConversation: jest.fn(),
       refreshHistory: jest.fn(),
       setCurrentConversation: jest.fn(),
-    } as ReturnType<typeof useChat>));
+      canRetry: false,
+      getErrorMessage: (e: any) => (typeof e === 'string' ? e : e?.message ?? ''),
+    } as any));
   });
 
   test('renders welcome screen when no messages', async () => {
@@ -53,7 +55,7 @@ describe('ChatWindow', () => {
       messages: [],
       isLoading: false,
       isStreaming: false,
-      error: 'Test error message',
+      error: { type: 'server', message: 'Test error message', retryable: true },
       hasMessages: false,
       canSendMessage: true,
       sendMessage: mockSendMessage,
@@ -62,7 +64,9 @@ describe('ChatWindow', () => {
       loadConversation: jest.fn(),
       refreshHistory: jest.fn(),
       setCurrentConversation: jest.fn(),
-    } as ReturnType<typeof useChat>));
+      canRetry: true,
+      getErrorMessage: (e: any) => (typeof e === 'string' ? e : e?.message ?? ''),
+    } as any));
 
     render(<ChatWindow />);
     
@@ -85,7 +89,7 @@ describe('ChatWindow', () => {
       loadConversation: jest.fn(),
       refreshHistory: jest.fn(),
       setCurrentConversation: jest.fn(),
-    } as ReturnType<typeof useChat>));
+    } as any));
 
     render(<ChatWindow />);
     

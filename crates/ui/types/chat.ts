@@ -5,7 +5,11 @@ export interface ChatMessage {
   timestamp: Date;
   toolUses?: ToolUse[];
   metadata?: MessageMetadata;
+  status?: MessageStatus;
+  error?: string;
 }
+
+export type MessageStatus = 'sending' | 'sent' | 'streaming' | 'completed' | 'failed';
 
 export interface ToolUse {
   id: string;
@@ -49,4 +53,19 @@ export interface FileContext {
   content: string;
   mimeType?: string;
   size?: number;
+}
+
+export interface ChatError {
+  type: 'network' | 'auth' | 'validation' | 'server' | 'unknown';
+  message: string;
+  details?: string;
+  retryable?: boolean;
+}
+
+export interface StreamChunk {
+  chunk_id: string;
+  conversation_id: string;
+  content: string;
+  is_complete: boolean;
+  error?: string;
 }
