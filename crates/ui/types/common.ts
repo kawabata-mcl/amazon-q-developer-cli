@@ -59,3 +59,17 @@ export interface ChatSettings {
   autoSave: boolean;
   maxHistoryLength: number;
 }
+
+export interface FileContent {
+  path: string;
+  content: string;
+  size: number;
+  mimeType?: string | null;
+}
+
+export interface ContextFile {
+  path: string;
+  name: string;
+  size: number;
+  addedAt: Date;
+}

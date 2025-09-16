@@ -62,6 +62,22 @@ export async function addFileContextCommand(fileName: string, content: string): 
   return await invoke('add_file_context', { file_name: fileName, content });
 }
 
+export async function addFileToContextByPathCommand(filePath: string): Promise<void> {
+  return await invoke('add_file_to_context_by_path', { file_path: filePath });
+}
+
+export async function getContextFilesCommand(): Promise<Array<[string, string]>> {
+  return await invoke('get_context_files');
+}
+
+export async function removeFileFromContextCommand(filePath: string): Promise<void> {
+  return await invoke('remove_file_from_context', { file_path: filePath });
+}
+
+export async function clearContextCommand(): Promise<void> {
+  return await invoke('clear_context');
+}
+
 // Settings commands
 export async function getSettingsCommand(): Promise<Record<string, unknown>> {
   return await invoke('get_settings');

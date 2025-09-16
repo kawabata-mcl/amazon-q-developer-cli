@@ -14,6 +14,12 @@ declare global {
   }
 }
 
+// jsdom polyfills for TextEncoder/TextDecoder
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { TextEncoder, TextDecoder } = require('util')
+;(global as unknown as { TextEncoder?: unknown }).TextEncoder = TextEncoder
+;(global as unknown as { TextDecoder?: unknown }).TextDecoder = TextDecoder
+
 // Mock Next.js router
 jest.mock('next/navigation', () => ({
   useRouter() {
