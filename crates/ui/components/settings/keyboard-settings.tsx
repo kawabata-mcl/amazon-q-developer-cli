@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useSettings } from '@/hooks/use-settings';
+import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useState } from 'react';
 import { Keyboard, RotateCcw } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const DEFAULT_SHORTCUTS = {
 
 export function KeyboardSettings() {
   const { settings, updateSetting } = useSettings();
+  const { shortcuts: registeredShortcuts } = useKeyboardShortcuts({});
   const { keyboard } = settings;
   
   const [editingShortcut, setEditingShortcut] = useState<string | null>(null);

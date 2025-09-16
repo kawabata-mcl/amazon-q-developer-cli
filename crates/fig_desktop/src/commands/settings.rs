@@ -15,8 +15,11 @@ pub struct AppSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppearanceSettings {
     pub theme: String,
+    #[serde(rename = "fontSize")]
     pub font_size: u32,
+    #[serde(rename = "fontFamily")]
     pub font_family: String,
+    #[serde(rename = "accentColor")]
     pub accent_color: String,
 }
 
@@ -27,21 +30,28 @@ pub struct WindowSettings {
     pub x: Option<i32>,
     pub y: Option<i32>,
     pub maximized: bool,
+    #[serde(rename = "alwaysOnTop")]
     pub always_on_top: bool,
+    #[serde(rename = "rememberPosition")]
     pub remember_position: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KeyboardSettings {
     pub shortcuts: HashMap<String, String>,
+    #[serde(rename = "enableGlobalShortcuts")]
     pub enable_global_shortcuts: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneralSettings {
+    #[serde(rename = "autoSave")]
     pub auto_save: bool,
+    #[serde(rename = "autoSaveInterval")]
     pub auto_save_interval: u32,
+    #[serde(rename = "maxConversationHistory")]
     pub max_conversation_history: u32,
+    #[serde(rename = "enableNotifications")]
     pub enable_notifications: bool,
     pub language: String,
 }
@@ -215,6 +225,90 @@ pub async fn get_window_state(
     })
 }
 
+#[tauri::command]
+pub async fn save_window_state(
+    settings_state: State<'_, SettingsState>,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let window_state = get_window_state(app_handle).await?;
+    
+    // Update settings with current window state
+    {
+        let mut settings = settings_state.lock().await;
+        settings.window = window_state;
+    }
+
+    // Save to file
+    let settings = settings_state.lock().await.clone();
+    save_settings_to_file(&settings).await?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn apply_theme(
+    theme: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    // Emit theme change event to frontend
+    app_handle.emit_all("theme-changed", &theme)
+        .map_err(|e| format!("Failed to emit theme change: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn register_global_shortcut(
+    shortcut: String,
+    action: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri::GlobalShortcutManager;
+    
+    let mut shortcut_manager = app_handle.global_shortcut_manager();
+    
+    // Unregister existing shortcut if it exists
+    if shortcut_manager.is_registered(&shortcut).unwrap_or(false) {
+        shortcut_manager.unregister(&shortcut)
+            .map_err(|e| format!("Failed to unregister shortcut: {}", e))?;
+    }
+    
+    // Register new shortcut
+    let action_clone = action.clone();
+    shortcut_manager.register(&shortcut, move || {
+        // Handle shortcut action
+        println!("Global shortcut triggered: {}", action_clone);
+    })
+    .map_err(|e| format!("Failed to register global shortcut: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn unregister_global_shortcut(
+    shortcut: String,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    use tauri::GlobalShortcutManager;
+    
+    let mut shortcut_manager = app_handle.global_shortcut_manager();
+    
+    if shortcut_manager.is_registered(&shortcut).unwrap_or(false) {
+        shortcut_manager.unregister(&shortcut)
+            .map_err(|e| format!("Failed to unregister shortcut: {}", e))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn quit_app(
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    app_handle.exit(0);
+    Ok(())
+}
+
 async fn save_settings_to_file(settings: &AppSettings) -> Result<(), String> {
     use std::path::PathBuf;
     use tokio::fs;
@@ -260,4 +354,40 @@ pub async fn load_settings_from_file() -> Result<AppSettings, String> {
         .map_err(|e| format!("Failed to parse settings: {}", e))?;
 
     Ok(settings)
+}
+
+// Internal function for auto-saving window state
+pub async fn save_window_state_internal(
+    settings_state: SettingsState,
+    app_handle: tauri::AppHandle,
+) -> Result<(), String> {
+    let window = app_handle.get_window("main")
+        .ok_or("Main window not found")?;
+
+    let size = window.inner_size()
+        .map_err(|e| format!("Failed to get window size: {}", e))?;
+    
+    let position = window.outer_position()
+        .map_err(|e| format!("Failed to get window position: {}", e))?;
+
+    let is_maximized = window.is_maximized()
+        .map_err(|e| format!("Failed to get maximized state: {}", e))?;
+
+    // Update settings with current window state
+    {
+        let mut settings = settings_state.lock().await;
+        if settings.window.remember_position {
+            settings.window.width = size.width;
+            settings.window.height = size.height;
+            settings.window.x = Some(position.x);
+            settings.window.y = Some(position.y);
+            settings.window.maximized = is_maximized;
+        }
+    }
+
+    // Save to file
+    let settings = settings_state.lock().await.clone();
+    save_settings_to_file(&settings).await?;
+
+    Ok(())
 }

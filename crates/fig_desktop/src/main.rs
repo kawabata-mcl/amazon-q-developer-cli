@@ -75,10 +75,45 @@ async fn main() {
             settings::get_app_settings,
             settings::update_app_settings,
             settings::reset_app_settings,
-            settings::get_window_state
+            settings::get_window_state,
+            settings::save_window_state,
+            settings::apply_theme,
+            settings::register_global_shortcut,
+            settings::unregister_global_shortcut,
+            settings::quit_app
         ])
-        .setup(|_app| {
+        .setup(|app| {
             info!("Tauri application setup completed");
+            
+            // Setup window event listeners for auto-saving window state
+            let app_handle = app.handle();
+            let settings_state_clone = settings_state.clone();
+            
+            if let Some(window) = app.get_window("main") {
+                let app_handle_clone = app_handle.clone();
+                let settings_state_clone2 = settings_state_clone.clone();
+                
+                // Listen for window resize events
+                window.on_window_event(move |event| {
+                    match event {
+                        tauri::WindowEvent::Resized(_) | 
+                        tauri::WindowEvent::Moved(_) => {
+                            let app_handle = app_handle_clone.clone();
+                            let settings_state = settings_state_clone2.clone();
+                            
+                            // Save window state after a short delay to avoid excessive saves
+                            tokio::spawn(async move {
+                                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+                                if let Err(e) = save_window_state_internal(settings_state, app_handle).await {
+                                    eprintln!("Failed to auto-save window state: {}", e);
+                                }
+                            });
+                        }
+                        _ => {}
+                    }
+                });
+            }
+            
             Ok(())
         })
         .run(tauri::generate_context!("src-tauri/tauri.conf.json"))

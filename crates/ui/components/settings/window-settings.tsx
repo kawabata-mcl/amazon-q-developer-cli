@@ -5,10 +5,12 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/use-settings';
+import { useWindowState } from '@/hooks/use-window-state';
 import { useState } from 'react';
 
 export function WindowSettings() {
   const { settings, updateSetting } = useSettings();
+  const { saveWindowState, getCurrentWindowState } = useWindowState();
   const { window: windowSettings } = settings;
   
   const [tempWidth, setTempWidth] = useState(windowSettings.width.toString());
@@ -33,6 +35,16 @@ export function WindowSettings() {
     });
     setTempWidth('1200');
     setTempHeight('800');
+  };
+
+  const saveCurrentState = async () => {
+    await saveWindowState();
+    // Refresh the current state display
+    const currentState = await getCurrentWindowState();
+    if (currentState) {
+      setTempWidth(currentState.width.toString());
+      setTempHeight(currentState.height.toString());
+    }
   };
 
   return (
@@ -83,6 +95,13 @@ export function WindowSettings() {
               }
             >
               Apply Size
+            </Button>
+            <Button
+              onClick={saveCurrentState}
+              variant="outline"
+              size="sm"
+            >
+              Save Current
             </Button>
             <Button
               onClick={resetToDefaults}

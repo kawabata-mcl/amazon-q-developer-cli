@@ -68,6 +68,19 @@ jest.mock('@tauri-apps/api/event', () => ({
   }),
 }))
 
+// Mock Tauri window API used by use-window-state
+jest.mock('@tauri-apps/api/window', () => ({
+  appWindow: {
+    setSize: jest.fn(async () => undefined),
+    setPosition: jest.fn(async () => undefined),
+    maximize: jest.fn(async () => undefined),
+    unmaximize: jest.fn(async () => undefined),
+    setAlwaysOnTop: jest.fn(async () => undefined),
+    onResized: jest.fn(async () => () => {}),
+    onMoved: jest.fn(async () => () => {}),
+  },
+}))
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,

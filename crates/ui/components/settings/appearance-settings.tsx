@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { useSettings } from '@/hooks/use-settings';
+import { useTheme } from '@/hooks/use-theme';
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Light' },
@@ -32,6 +33,7 @@ const ACCENT_COLOR_OPTIONS = [
 
 export function AppearanceSettings() {
   const { settings, updateSetting } = useSettings();
+  const { setTheme } = useTheme();
   const { appearance } = settings;
 
   return (
@@ -48,9 +50,10 @@ export function AppearanceSettings() {
           <Select
             aria-label="Theme Select"
             value={appearance.theme}
-            onValueChange={(value) => 
-              updateSetting('appearance', { theme: value as 'light' | 'dark' | 'system' })
-            }
+            onValueChange={(value) => {
+              const themeValue = value as 'light' | 'dark' | 'system';
+              setTheme(themeValue);
+            }}
             options={THEME_OPTIONS}
             className="w-full max-w-xs"
           />

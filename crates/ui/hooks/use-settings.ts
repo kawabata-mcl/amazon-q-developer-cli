@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
 import type { AppSettings } from '@/types/settings';
+import { DEFAULT_SETTINGS } from '@/types/settings';
 
 export function useSettings() {
   const {
@@ -42,19 +43,21 @@ export function useSettings() {
     }
   };
 
+  const effectiveSettings = settings ?? DEFAULT_SETTINGS;
+
   return {
-    settings,
+    settings: effectiveSettings,
     isLoading,
     error,
     updateSettings,
     updateSetting,
     resetSettings,
     // Convenience getters
-    theme: settings.appearance.theme,
-    fontSize: settings.appearance.fontSize,
-    fontFamily: settings.appearance.fontFamily,
-    shortcuts: settings.keyboard.shortcuts,
-    windowSettings: settings.window,
-    generalSettings: settings.general
+    theme: effectiveSettings.appearance.theme,
+    fontSize: effectiveSettings.appearance.fontSize,
+    fontFamily: effectiveSettings.appearance.fontFamily,
+    shortcuts: effectiveSettings.keyboard.shortcuts,
+    windowSettings: effectiveSettings.window,
+    generalSettings: effectiveSettings.general
   };
 }
