@@ -34,10 +34,20 @@ async fn main() {
         }
     };
 
+    // Initialize settings state
+    let settings_state = match settings::load_settings_from_file().await {
+        Ok(settings) => Arc::new(Mutex::new(settings)),
+        Err(e) => {
+            eprintln!("Failed to load settings, using defaults: {}", e);
+            Arc::new(Mutex::new(settings::AppSettings::default()))
+        }
+    };
+
     // Build and run Tauri application
     tauri::Builder::default()
         .manage(app_state)
         .manage(cli_bridge)
+        .manage(settings_state)
         .invoke_handler(tauri::generate_handler![
             // Authentication commands
             auth::login,
@@ -62,11 +72,10 @@ async fn main() {
             file_ops::remove_file_from_context,
             file_ops::clear_context,
             // Settings commands
-            settings::get_settings,
-            settings::update_settings,
-            settings::update_window_settings,
-            settings::update_theme,
-            settings::reset_settings
+            settings::get_app_settings,
+            settings::update_app_settings,
+            settings::reset_app_settings,
+            settings::get_window_state
         ])
         .setup(|_app| {
             info!("Tauri application setup completed");

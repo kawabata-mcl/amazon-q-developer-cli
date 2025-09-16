@@ -7,6 +7,7 @@ pub mod auth;
 pub mod chat;
 pub mod file_ops;
 pub mod settings;
+pub mod settings;
 
 // Common error types and response types
 use serde::{Deserialize, Serialize};

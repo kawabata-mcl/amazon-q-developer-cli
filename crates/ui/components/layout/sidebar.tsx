@@ -1,10 +1,11 @@
 'use client'
 
 import * as React from "react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui"
 import { ConversationList } from "@/components/chat/conversation-list"
+import { SettingsPanel } from "@/components/settings/settings-panel"
 import { useChat } from "@/hooks/use-chat"
 import { 
   Plus, 
@@ -28,6 +29,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSettingsClick,
   className
 }) => {
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
   const {
     conversations,
     currentConversation,
@@ -144,7 +147,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-2"
-                onClick={onSettingsClick}
+                onClick={() => {
+                  setIsSettingsOpen(true);
+                  onSettingsClick?.();
+                }}
               >
                 <Settings className="h-4 w-4" />
                 Settings
@@ -170,6 +176,12 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
       </aside>
+
+      {/* Settings Panel */}
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </>
   )
 }

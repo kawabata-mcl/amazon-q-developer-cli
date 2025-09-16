@@ -1,22 +1,7 @@
 import '@testing-library/jest-dom'
 
-// Extend Jest matchers with jest-dom custom matchers
-declare global {
-  namespace jest {
-    interface Matchers<R> {
-      toBeInTheDocument(): R;
-      toBeDisabled(): R;
-      toHaveAttribute(attr: string, value?: string): R;
-      toHaveClass(className: string): R;
-      toHaveTextContent(text: string | RegExp): R;
-      toBeVisible(): R;
-    }
-  }
-}
-
 // jsdom polyfills for TextEncoder/TextDecoder
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const { TextEncoder, TextDecoder } = require('util')
+import { TextEncoder, TextDecoder } from 'util'
 ;(global as unknown as { TextEncoder?: unknown }).TextEncoder = TextEncoder
 ;(global as unknown as { TextDecoder?: unknown }).TextDecoder = TextDecoder
 
@@ -40,9 +25,12 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
+// Bring in default settings for Tauri mocks
+import { DEFAULT_SETTINGS } from '@/types/settings'
+
 // Mock Tauri API: provide sane defaults for commands used in tests
 jest.mock('@tauri-apps/api/tauri', () => ({
-  invoke: jest.fn(async (cmd: string, _args?: any) => {
+  invoke: jest.fn(async (cmd: string, _args?: unknown) => {
     switch (cmd) {
       case 'get_auth_status':
         return { type: 'NotAuthenticated' };
@@ -58,6 +46,14 @@ jest.mock('@tauri-apps/api/tauri', () => ({
         return [];
       case 'get_all_conversations':
         return [];
+      // Settings related commands
+      case 'get_app_settings':
+        return DEFAULT_SETTINGS;
+      case 'update_app_settings':
+        // pretend persist succeeded
+        return undefined;
+      case 'reset_app_settings':
+        return undefined;
       default:
         return undefined;
     }
@@ -66,7 +62,7 @@ jest.mock('@tauri-apps/api/tauri', () => ({
 
 // Mock Tauri events API used by chat store
 jest.mock('@tauri-apps/api/event', () => ({
-  listen: jest.fn(async (_event: string, _handler: (e: any) => void) => {
+  listen: jest.fn(async () => {
     // Return unlisten function
     return () => {};
   }),
