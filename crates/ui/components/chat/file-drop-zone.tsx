@@ -4,7 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { Upload, FilePlus, FileText, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { addFileContextCommand } from '@/lib/tauri';
+import { useFileContextStore } from '@/stores/file-context-store';
 import { cn } from '@/lib/utils';
 
 interface FileDropZoneProps {
@@ -44,6 +44,7 @@ export function FileDropZone({
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedFiles, setProcessedFiles] = useState<DroppedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addFileToContext } = useFileContextStore();
 
   const validateFile = useCallback((file: File): string | null => {
     // Check file size
@@ -101,8 +102,8 @@ export function FileDropZone({
         // Read file content
         const content = await readFileAsText(file);
         
-        // Add to context via Tauri command
-        await addFileContextCommand(file.name, content);
+        // Add to context via store
+        await addFileToContext(file.name, content);
         
         const processedFile: DroppedFile = {
           name: file.name,

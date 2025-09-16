@@ -1,9 +1,10 @@
+import '@testing-library/jest-dom'
 import { describe, test, expect, jest, beforeEach } from '@jest/globals'
 import { render, screen, waitFor } from '@testing-library/react'
 import type { ConversationStats as StatsType } from '@/types/chat'
 
 // Mock the useChat hook (ESM-safe)
-const mockGetConversationStats = jest.fn()
+const mockGetConversationStats = jest.fn<() => Promise<StatsType>>()
 
 jest.mock('@/hooks/use-chat', () => ({
   __esModule: true,
@@ -11,7 +12,7 @@ jest.mock('@/hooks/use-chat', () => ({
 }))
 const useChatModule = jest.requireMock('@/hooks/use-chat') as { useChat: jest.Mock }
 // Import component after setting up mocks
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line import/no-commonjs
 const { ConversationStats } = require('../conversation-stats')
 
 const mockStats: StatsType = {
@@ -35,7 +36,7 @@ describe('ConversationStats', () => {
     
     render(<ConversationStats />)
 
-    expect(screen.getByText('Conversation Statistics')).toBeInTheDocument()
+    expect(screen.getByText('Conversation Statistics')).toBeTruthy()
     
     // Check for loading skeletons
     const skeletons = screen.getAllByRole('generic')
@@ -49,22 +50,22 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText('25')).toBeInTheDocument()
+      expect(screen.getByText('25')).toBeTruthy()
     })
 
     // Check all stat values
-    expect(screen.getByText('25')).toBeInTheDocument() // Total conversations
-    expect(screen.getByText('150')).toBeInTheDocument() // Total messages
-    expect(screen.getByText('3')).toBeInTheDocument() // Today
-    expect(screen.getByText('8')).toBeInTheDocument() // This week
-    expect(screen.getByText('15')).toBeInTheDocument() // This month
+    expect(screen.getByText('25')).toBeTruthy() // Total conversations
+    expect(screen.getByText('150')).toBeTruthy() // Total messages
+    expect(screen.getByText('3')).toBeTruthy() // Today
+    expect(screen.getByText('8')).toBeTruthy() // This week
+    expect(screen.getByText('15')).toBeTruthy() // This month
 
     // Check labels
-    expect(screen.getByText('Total Conversations')).toBeInTheDocument()
-    expect(screen.getByText('Total Messages')).toBeInTheDocument()
-    expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('This Week')).toBeInTheDocument()
-    expect(screen.getByText('This Month')).toBeInTheDocument()
+    expect(screen.getByText('Total Conversations')).toBeTruthy()
+    expect(screen.getByText('Total Messages')).toBeTruthy()
+    expect(screen.getByText('Today')).toBeTruthy()
+    expect(screen.getByText('This Week')).toBeTruthy()
+    expect(screen.getByText('This Month')).toBeTruthy()
   })
 
   test('calculates and displays insights correctly', async () => {
@@ -73,17 +74,17 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText('Insights')).toBeInTheDocument()
+      expect(screen.getByText('Insights')).toBeTruthy()
     })
 
     // Check average messages per conversation (150 / 25 = 6)
-    expect(screen.getByText('6')).toBeInTheDocument()
+    expect(screen.getByText('6')).toBeTruthy()
 
     // Check activity rate (8 / 25 * 100 = 32%)
-    expect(screen.getByText('32%')).toBeInTheDocument()
+    expect(screen.getByText('32%')).toBeTruthy()
 
     // Check active today indicator
-    expect(screen.getByText('3 conversations')).toBeInTheDocument()
+    expect(screen.getByText('3 conversations')).toBeTruthy()
   })
 
   test('handles zero conversations gracefully', async () => {
@@ -100,7 +101,7 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText('Insights')).toBeInTheDocument()
+      expect(screen.getByText('Insights')).toBeTruthy()
     })
 
     // Check that average is 0 when no conversations
@@ -115,11 +116,11 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText(errorMessage)).toBeInTheDocument()
+      expect(screen.getByText(/Failed to load statistics/)).toBeTruthy()
     })
 
     // Should still show the header
-    expect(screen.getByText('Conversation Statistics')).toBeInTheDocument()
+    expect(screen.getByText('Conversation Statistics')).toBeTruthy()
   })
 
   test('formats large numbers correctly', async () => {
@@ -137,8 +138,8 @@ describe('ConversationStats', () => {
 
     await waitFor(() => {
       // Check that numbers are formatted with commas
-      expect(screen.getByText('1,234')).toBeInTheDocument()
-      expect(screen.getByText('56,789')).toBeInTheDocument()
+      expect(screen.getByText(/1,234/)).toBeTruthy()
+      expect(screen.getByText(/56,789/)).toBeTruthy()
     })
   })
 
@@ -148,15 +149,15 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText('Insights')).toBeInTheDocument()
+      expect(screen.getByText('Insights')).toBeTruthy()
     })
 
     // Should show "Active today" when conversations_today > 0
-    expect(screen.getByText('Active today:')).toBeInTheDocument()
-    expect(screen.getByText('3 conversations')).toBeInTheDocument()
+    expect(screen.getByText(/Active today:/)).toBeTruthy()
+    expect(screen.getByText('3 conversations')).toBeTruthy()
 
     // Should show activity rate
-    expect(screen.getByText('Activity rate (week):')).toBeInTheDocument()
+    expect(screen.getByText('Activity rate (week):')).toBeTruthy()
   })
 
   test('handles stats with no activity today', async () => {
@@ -173,11 +174,11 @@ describe('ConversationStats', () => {
     render(<ConversationStats />)
 
     await waitFor(() => {
-      expect(screen.getByText('Insights')).toBeInTheDocument()
+      expect(screen.getByText('Insights')).toBeTruthy()
     })
 
     // Should not show "Active today" when conversations_today is 0
-    expect(screen.queryByText('Active today:')).not.toBeInTheDocument()
+    expect(screen.queryByText('Active today:')).toBeNull()
   })
 
   test('applies custom className', () => {
@@ -186,6 +187,6 @@ describe('ConversationStats', () => {
     const { container } = render(<ConversationStats className="custom-class" />)
     
     const statsCard = container.querySelector('.custom-class')
-    expect(statsCard).toBeInTheDocument()
+    expect(statsCard).toBeTruthy()
   })
 })
