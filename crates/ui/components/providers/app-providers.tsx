@@ -5,6 +5,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { useWindowState } from '@/hooks/use-window-state';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useSettings } from '@/hooks/use-settings';
+import { NotificationContainer } from '@/components/ui/notification-container';
+import { errorHandler } from '@/lib/error-handler';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -16,7 +18,10 @@ export function AppProviders({ children }: AppProvidersProps) {
       <ThemeProvider>
         <WindowStateProvider>
           <KeyboardShortcutProvider>
-            {children}
+            <ErrorHandlerProvider>
+              {children}
+              <NotificationContainer position="top-right" />
+            </ErrorHandlerProvider>
           </KeyboardShortcutProvider>
         </WindowStateProvider>
       </ThemeProvider>
@@ -87,6 +92,22 @@ function KeyboardShortcutProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new CustomEvent('open-settings'));
     }
   });
+
+  return <>{children}</>;
+}
+
+function ErrorHandlerProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    // Initialize global error handler
+    const handler = errorHandler;
+    
+    // Log that error handling is initialized
+    console.log('Global error handler initialized');
+    
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
 
   return <>{children}</>;
 }

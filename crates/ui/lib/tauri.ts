@@ -2,11 +2,15 @@ import { invoke } from '@tauri-apps/api/tauri';
 import type { AuthStatus, LoginResponse } from '@/types/auth';
 import type { ChatMessage, SendMessageRequest, ChatConversation } from '@/types/chat';
 import type { AppSettings } from '@/types/common';
+import { handleAsyncError } from '@/lib/error-handler';
 
 // Authentication commands
 export async function loginCommand(): Promise<LoginResponse> {
   try {
-    const status = await invoke<AuthStatus>('login');
+    const status = await handleAsyncError(
+      invoke<AuthStatus>('login'),
+      { command: 'login', component: 'auth' }
+    );
     return {
       success: true,
       status,
@@ -21,20 +25,29 @@ export async function loginCommand(): Promise<LoginResponse> {
 }
 
 export async function logoutCommand(): Promise<void> {
-  return await invoke('logout');
+  return await handleAsyncError(
+    invoke('logout'),
+    { command: 'logout', component: 'auth' }
+  );
 }
 
 export async function getAuthStatusCommand(): Promise<AuthStatus> {
-  return await invoke('get_auth_status');
+  return await handleAsyncError(
+    invoke('get_auth_status'),
+    { command: 'get_auth_status', component: 'auth' }
+  );
 }
 
 // Chat commands
 export async function sendMessageCommand(request: SendMessageRequest): Promise<unknown> {
-  return await invoke('send_message', {
-    message: request.message,
-    conversation_id: request.conversationId,
-    context: request.context,
-  });
+  return await handleAsyncError(
+    invoke('send_message', {
+      message: request.message,
+      conversation_id: request.conversationId,
+      context: request.context,
+    }),
+    { command: 'send_message', component: 'chat', message: request.message }
+  );
 }
 
 export async function getConversationHistoryCommand(conversationId: string): Promise<ChatMessage[]> {

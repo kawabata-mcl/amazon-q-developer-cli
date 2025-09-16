@@ -80,7 +80,12 @@ async fn main() {
             settings::apply_theme,
             settings::register_global_shortcut,
             settings::unregister_global_shortcut,
-            settings::quit_app
+            settings::quit_app,
+            // Error logging commands
+            error_logging::log_error,
+            error_logging::get_error_logs,
+            error_logging::clear_error_logs,
+            error_logging::get_error_log_size
         ])
         .setup(|app| {
             info!("Tauri application setup completed");
