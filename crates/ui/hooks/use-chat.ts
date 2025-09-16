@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useChatStore } from '@/stores/chat-store';
-import type { ChatError } from '@/types/chat';
+import type { ChatError, ConversationStats } from '@/types/chat';
 
 /**
  * Custom hook for chat functionality
@@ -20,6 +20,10 @@ export function useChat() {
     loadConversationHistory,
     setCurrentConversation,
     clearError,
+    deleteConversation,
+    renameConversation,
+    searchConversations,
+    getConversationStats,
   } = useChatStore();
 
   // Send a message with error handling
@@ -77,6 +81,54 @@ export function useChat() {
     }
   }, [loadConversationHistory]);
 
+  // Delete conversation
+  const handleDeleteConversation = useCallback(async (conversationId: string) => {
+    try {
+      await deleteConversation(conversationId);
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+      throw error;
+    }
+  }, [deleteConversation]);
+
+  // Rename conversation
+  const handleRenameConversation = useCallback(async (conversationId: string, newTitle: string) => {
+    if (!newTitle.trim()) {
+      throw new Error('Conversation title cannot be empty');
+    }
+    
+    try {
+      await renameConversation(conversationId, newTitle.trim());
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+      throw error;
+    }
+  }, [renameConversation]);
+
+  // Search conversations
+  const handleSearchConversations = useCallback(async (query: string, limit?: number) => {
+    if (!query.trim()) {
+      return [];
+    }
+    
+    try {
+      return await searchConversations(query.trim(), limit);
+    } catch (error) {
+      console.error('Failed to search conversations:', error);
+      throw error;
+    }
+  }, [searchConversations]);
+
+  // Get conversation statistics
+  const handleGetStats = useCallback(async () => {
+    try {
+      return await getConversationStats();
+    } catch (error) {
+      console.error('Failed to get conversation stats:', error);
+      throw error;
+    }
+  }, [getConversationStats]);
+
   // Check if we can send messages
   const canSendMessage = !isLoading && !isStreaming;
 
@@ -127,6 +179,12 @@ export function useChat() {
     refreshHistory: handleRefreshHistory,
     setCurrentConversation,
     clearError,
+    
+    // Conversation management
+    deleteConversation: handleDeleteConversation,
+    renameConversation: handleRenameConversation,
+    searchConversations: handleSearchConversations,
+    getConversationStats: handleGetStats,
     
     // Helpers
     getErrorMessage,

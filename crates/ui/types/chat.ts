@@ -69,3 +69,11 @@ export interface StreamChunk {
   is_complete: boolean;
   error?: string;
 }
+
+export interface ConversationStats {
+  total_conversations: number;
+  total_messages: number;
+  conversations_today: number;
+  conversations_this_week: number;
+  conversations_this_month: number;
+}

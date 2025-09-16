@@ -1,15 +1,16 @@
 'use client'
 
 import * as React from "react"
+import { useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui"
+import { ConversationList } from "@/components/chat/conversation-list"
+import { useChat } from "@/hooks/use-chat"
 import { 
-  MessageSquare, 
   Plus, 
-  History, 
   Settings, 
   FileText,
-  MoreHorizontal
+  BarChart3
 } from "lucide-react"
 
 export interface SidebarProps {
@@ -20,13 +21,6 @@ export interface SidebarProps {
   className?: string
 }
 
-interface ConversationItem {
-  id: string
-  title: string
-  timestamp: Date
-  isActive?: boolean
-}
-
 const Sidebar: React.FC<SidebarProps> = ({
   isOpen = true,
   onClose,
@@ -34,40 +28,54 @@ const Sidebar: React.FC<SidebarProps> = ({
   onSettingsClick,
   className
 }) => {
-  // Mock conversation data - this would come from props or state in real implementation
-  const conversations: ConversationItem[] = [
-    {
-      id: '1',
-      title: 'React component help',
-      timestamp: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-      isActive: true
-    },
-    {
-      id: '2', 
-      title: 'TypeScript error debugging',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    },
-    {
-      id: '3',
-      title: 'API integration questions',
-      timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    }
-  ]
+  const {
+    conversations,
+    currentConversation,
+    loadConversation,
+    deleteConversation,
+    renameConversation,
+    refreshHistory,
+    startNewConversation,
+    isLoading,
+  } = useChat();
 
-  const formatTimestamp = (date: Date) => {
-    const now = new Date()
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60))
-    
-    if (diffInHours < 1) {
-      const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60))
-      return `${diffInMinutes}m ago`
-    } else if (diffInHours < 24) {
-      return `${diffInHours}h ago`
-    } else {
-      const diffInDays = Math.floor(diffInHours / 24)
-      return `${diffInDays}d ago`
+  // Load conversation history on mount
+  useEffect(() => {
+    refreshHistory().catch(console.error);
+  }, [refreshHistory]);
+
+  const handleNewChat = async () => {
+    try {
+      await startNewConversation();
+      onNewChat?.();
+    } catch (error) {
+      console.error('Failed to start new conversation:', error);
     }
-  }
+  };
+
+  const handleConversationSelect = async (conversationId: string) => {
+    try {
+      await loadConversation(conversationId);
+    } catch (error) {
+      console.error('Failed to load conversation:', error);
+    }
+  };
+
+  const handleConversationDelete = async (conversationId: string) => {
+    try {
+      await deleteConversation(conversationId);
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    }
+  };
+
+  const handleConversationRename = async (conversationId: string, newTitle: string) => {
+    try {
+      await renameConversation(conversationId, newTitle);
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+    }
+  };
 
   return (
     <>
@@ -109,9 +117,10 @@ const Sidebar: React.FC<SidebarProps> = ({
           {/* New Chat Button */}
           <div className="p-4">
             <Button
-              onClick={onNewChat}
+              onClick={handleNewChat}
               className="w-full justify-start gap-2"
               variant="outline"
+              disabled={isLoading}
             >
               <Plus className="h-4 w-4" />
               New Chat
@@ -119,38 +128,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Conversations List */}
-          <div className="flex-1 overflow-y-auto px-2">
-            <div className="space-y-1">
-              {conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className={cn(
-                    "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800",
-                    conversation.isActive && "bg-gray-100 dark:bg-gray-800"
-                  )}
-                >
-                  <MessageSquare className="h-4 w-4 flex-shrink-0 text-gray-500 dark:text-gray-400" />
-                  
-                  <div className="flex-1 overflow-hidden">
-                    <div className="truncate font-medium text-gray-900 dark:text-gray-100">
-                      {conversation.title}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {formatTimestamp(conversation.timestamp)}
-                    </div>
-                  </div>
-
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                    aria-label="More options"
-                  >
-                    <MoreHorizontal className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
-            </div>
+          <div className="flex-1 overflow-hidden">
+            <ConversationList
+              conversations={conversations}
+              currentConversationId={currentConversation?.id}
+              onConversationSelect={handleConversationSelect}
+              onConversationDelete={handleConversationDelete}
+              onConversationRename={handleConversationRename}
+            />
           </div>
 
           {/* Footer */}
@@ -168,9 +153,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-2"
+                onClick={() => refreshHistory().catch(console.error)}
               >
-                <History className="h-4 w-4" />
-                History
+                <BarChart3 className="h-4 w-4" />
+                Statistics
               </Button>
               
               <Button

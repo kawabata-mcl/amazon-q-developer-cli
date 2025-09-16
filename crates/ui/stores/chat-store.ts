@@ -6,7 +6,8 @@ import type {
   ChatMessage, 
   ChatError, 
   StreamChunk,
-  MessageStatus 
+  MessageStatus,
+  ConversationStats
 } from '@/types/chat';
 
 interface ChatState {
@@ -30,6 +31,12 @@ interface ChatState {
   loadConversationHistory: () => Promise<void>;
   setCurrentConversation: (conversation: ChatConversation | null) => void;
   clearError: () => void;
+  
+  // Conversation management
+  deleteConversation: (conversationId: string) => Promise<void>;
+  renameConversation: (conversationId: string, newTitle: string) => Promise<void>;
+  searchConversations: (query: string, limit?: number) => Promise<ChatConversation[]>;
+  getConversationStats: () => Promise<ConversationStats>;
   
   // Internal helpers
   updateMessageStatus: (messageId: string, status: MessageStatus, error?: string) => void;
@@ -407,6 +414,81 @@ export const useChatStore = create<ChatState>((set, get) => ({
         updatedAt: new Date(),
       } : null,
     }));
+  },
+
+  // Delete conversation
+  deleteConversation: async (conversationId: string) => {
+    try {
+      await invoke('delete_conversation', { conversation_id: conversationId });
+      
+      set((state) => ({
+        conversations: state.conversations.filter(c => c.id !== conversationId),
+        currentConversation: state.currentConversation?.id === conversationId 
+          ? null 
+          : state.currentConversation,
+      }));
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+      throw error;
+    }
+  },
+
+  // Rename conversation
+  renameConversation: async (conversationId: string, newTitle: string) => {
+    try {
+      await invoke('rename_conversation', { 
+        conversation_id: conversationId, 
+        new_title: newTitle 
+      });
+      
+      set((state) => ({
+        conversations: state.conversations.map(c => 
+          c.id === conversationId 
+            ? { ...c, title: newTitle, updatedAt: new Date() }
+            : c
+        ),
+        currentConversation: state.currentConversation?.id === conversationId
+          ? { ...state.currentConversation, title: newTitle, updatedAt: new Date() }
+          : state.currentConversation,
+      }));
+    } catch (error) {
+      console.error('Failed to rename conversation:', error);
+      throw error;
+    }
+  },
+
+  // Search conversations
+  searchConversations: async (query: string, limit?: number) => {
+    try {
+      const results = await invoke<ChatConversation[]>('search_conversations', { 
+        query, 
+        limit 
+      });
+      
+      return results.map(conv => ({
+        ...conv,
+        createdAt: new Date(conv.createdAt),
+        updatedAt: new Date(conv.updatedAt),
+        messages: conv.messages.map(msg => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        })),
+      }));
+    } catch (error) {
+      console.error('Failed to search conversations:', error);
+      throw error;
+    }
+  },
+
+  // Get conversation statistics
+  getConversationStats: async () => {
+    try {
+      const stats = await invoke<ConversationStats>('get_conversation_stats');
+      return stats;
+    } catch (error) {
+      console.error('Failed to get conversation stats:', error);
+      throw error;
+    }
   },
 
   // Add message to conversation

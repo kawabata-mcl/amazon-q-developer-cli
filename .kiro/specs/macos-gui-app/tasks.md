@@ -1,94 +1,109 @@
 # Implementation Plan
 
-- [x] 1. プロジェクト構造とTauri基盤の構築
-  - fig_desktopクレートの作成とCargo.tomlの設定
-  - Tauriプロジェクトの初期化とtauri.conf.jsonの設定
-  - 既存のchat-cliクレートとの依存関係の設定
+- [x] 1. プロジェクト構造と Tauri 基盤の構築
+
+  - fig_desktop クレートの作成と Cargo.toml の設定
+  - Tauri プロジェクトの初期化と tauri.conf.json の設定
+  - 既存の chat-cli クレートとの依存関係の設定
   - _Requirements: 1.1, 3.1_
 
-- [x] 2. Next.jsフロントエンドの基盤構築
-  - [x] 2.1 Next.jsプロジェクトの初期化と設定
-    - Next.jsの初期セットアップを実施しているので、ディレクトリを確認し、作業内容を決定する
-    - package.jsonの作成と依存関係の設定
-    - next.config.mjsで静的エクスポート設定（output: 'export'）
-    - TypeScript、Tailwind CSS、ESLintの設定
+- [x] 2. Next.js フロントエンドの基盤構築
+
+  - [x] 2.1 Next.js プロジェクトの初期化と設定
+
+    - Next.js の初期セットアップを実施しているので、ディレクトリを確認し、作業内容を決定する
+    - package.json の作成と依存関係の設定
+    - next.config.mjs で静的エクスポート設定（output: 'export'）
+    - TypeScript、Tailwind CSS、ESLint の設定
     - _Requirements: 1.1, 7.1_
 
-  - [x] 2.2 基本的なApp Routerページ構造の作成
-    - app/layout.tsxでルートレイアウトの実装
-    - app/page.tsxでホームページの実装
-    - app/chat/page.tsxでチャットページの実装
-    - app/settings/page.tsxで設定ページの実装
+  - [x] 2.2 基本的な App Router ページ構造の作成
+    - app/layout.tsx でルートレイアウトの実装
+    - app/page.tsx でホームページの実装
+    - app/chat/page.tsx でチャットページの実装
+    - app/settings/page.tsx で設定ページの実装
     - _Requirements: 1.1, 4.2_
 
-- [x] 3. Rust バックエンドのTauriコマンド実装
+- [x] 3. Rust バックエンドの Tauri コマンド実装
+
   - [x] 3.1 認証関連コマンドの実装
-    - login、logout、get_auth_statusコマンドの作成
-    - 既存のauth moduleとの統合
+
+    - login、logout、get_auth_status コマンドの作成
+    - 既存の auth module との統合
     - 認証状態の管理とエラーハンドリング
     - _Requirements: 2.1, 4.1_
 
   - [x] 3.2 チャット関連コマンドの実装
-    - send_message、get_conversation_history、start_new_conversationコマンドの作成
-    - 既存のchat-cli機能との統合
+
+    - send_message、get_conversation_history、start_new_conversation コマンドの作成
+    - 既存の chat-cli 機能との統合
     - ストリーミングレスポンスの実装
     - _Requirements: 1.2, 2.2, 5.1_
 
   - [x] 3.3 ファイル操作コマンドの実装
-    - read_file_content、save_file_contentコマンドの作成
+    - read_file_content、save_file_content コマンドの作成
     - セキュアなファイルアクセスの実装
     - ファイルドラッグ&ドロップサポート
     - _Requirements: 2.3, 6.2_
 
-- [x] 4. 基本UIコンポーネントの実装
-  - [x] 4.1 共通UIコンポーネントの作成
-    - Button、Input、Card、Spinnerコンポーネントの実装
-    - Tailwind CSSを使用したスタイリング
-    - TypeScriptでの型安全性の確保
+- [x] 4. 基本 UI コンポーネントの実装
+
+  - [x] 4.1 共通 UI コンポーネントの作成
+
+    - Button、Input、Card、Spinner コンポーネントの実装
+    - Tailwind CSS を使用したスタイリング
+    - TypeScript での型安全性の確保
     - _Requirements: 7.1, 8.1_
 
   - [x] 4.2 レイアウトコンポーネントの実装
-    - Header、Sidebar、StatusBarコンポーネントの作成
+    - Header、Sidebar、StatusBar コンポーネントの作成
     - レスポンシブデザインの実装
     - ナビゲーション機能の実装
     - _Requirements: 7.1, 7.2_
 
 - [x] 5. 認証機能の実装
-  - [x] 5.1 AuthPanelコンポーネントの実装
-    - ログイン/ログアウトUIの作成
-    - Tauriコマンドとの連携
+
+  - [x] 5.1 AuthPanel コンポーネントの実装
+
+    - ログイン/ログアウト UI の作成
+    - Tauri コマンドとの連携
     - 認証状態の表示とエラーハンドリング
     - _Requirements: 2.1, 4.1_
 
   - [x] 5.2 認証状態管理の実装
-    - Zustandストアでの認証状態管理
-    - useAuthカスタムフックの作成
+    - Zustand ストアでの認証状態管理
+    - useAuth カスタムフックの作成
     - 認証が必要なページでの保護機能
     - _Requirements: 2.1, 4.1_
 
-- [-] 6. チャット機能の実装
-  - [x] 6.1 基本的なチャットUIの実装
-    - ChatWindowコンポーネントの作成
-    - MessageListとMessageItemコンポーネントの実装
-    - MessageInputコンポーネントの実装
+- [x] 6. チャット機能の実装
+
+  - [x] 6.1 基本的なチャット UI の実装
+
+    - ChatWindow コンポーネントの作成
+    - MessageList と MessageItem コンポーネントの実装
+    - MessageInput コンポーネントの実装
     - _Requirements: 1.2, 5.1, 6.1_
 
-  - [x] ] 6.2 メッセージ送受信機能の実装
-    - Tauriコマンドを使用したメッセージ送信
+  - [x] 6.2 メッセージ送受信機能の実装
+
+    - Tauri コマンドを使用したメッセージ送信
     - リアルタイムメッセージ表示の実装
     - エラーハンドリングとローディング状態の管理
     - _Requirements: 1.2, 5.1, 5.2_
 
-  - [ ] 6.3 会話履歴管理の実装
+  - [x] 6.3 会話履歴管理の実装
     - 会話履歴の保存と読み込み
     - 複数会話の管理機能
     - 会話の検索とフィルタリング
     - _Requirements: 4.2, 5.1_
 
 - [ ] 7. ファイルドラッグ&ドロップ機能の実装
-  - [ ] 7.1 FileDropZoneコンポーネントの実装
+
+  - [ ] 7.1 FileDropZone コンポーネントの実装
+
     - ドラッグ&ドロップイベントの処理
-    - ファイル読み込みとTauriコマンドへの送信
+    - ファイル読み込みと Tauri コマンドへの送信
     - 視覚的フィードバックの実装
     - _Requirements: 2.3, 6.2_
 
@@ -99,8 +114,10 @@
     - _Requirements: 2.3, 6.2_
 
 - [ ] 8. 設定機能の実装
-  - [ ] 8.1 SettingsPanelコンポーネントの実装
-    - 設定項目のUI作成（タブ形式）
+
+  - [ ] 8.1 SettingsPanel コンポーネントの実装
+
+    - 設定項目の UI 作成（タブ形式）
     - 設定値の保存と読み込み
     - 設定変更の即座反映
     - _Requirements: 4.2, 7.1_
@@ -112,7 +129,9 @@
     - _Requirements: 4.2, 7.2, 7.3_
 
 - [ ] 9. 構文ハイライトとマークダウン対応
+
   - [ ] 9.1 コード構文ハイライトの実装
+
     - 複数プログラミング言語のサポート
     - コードブロックの識別と表示
     - コピー機能の実装
@@ -120,12 +139,14 @@
 
   - [ ] 9.2 マークダウンレンダリングの実装
     - メッセージ内のマークダウン解析
-    - 安全なHTMLレンダリング
+    - 安全な HTML レンダリング
     - リンクとメディアの処理
     - _Requirements: 6.1, 6.2_
 
 - [ ] 10. パフォーマンス最適化
+
   - [ ] 10.1 仮想スクロールの実装
+
     - 大量メッセージの効率的な表示
     - メモリ使用量の最適化
     - スムーズなスクロール体験
@@ -138,66 +159,76 @@
     - _Requirements: 8.1, 8.3_
 
 - [ ] 11. エラーハンドリングと通知システム
+
   - [ ] 11.1 エラーハンドリングの実装
+
     - グローバルエラーハンドラーの作成
     - ユーザーフレンドリーなエラーメッセージ
     - エラーログの記録
     - _Requirements: 1.3, 8.1_
 
   - [ ] 11.2 通知システムの実装
-    - NotificationToastコンポーネントの作成
+    - NotificationToast コンポーネントの作成
     - 成功/エラー/情報通知の表示
     - 通知の自動消去機能
     - _Requirements: 1.3, 8.1_
 
 - [ ] 12. テスト実装
+
   - [ ] 12.1 ユニットテストの作成
-    - Reactコンポーネントのテスト
+
+    - React コンポーネントのテスト
     - カスタムフックのテスト
-    - Zustandストアのテスト
+    - Zustand ストアのテスト
     - _Requirements: 全要件_
 
   - [ ] 12.2 統合テストの作成
-    - Tauriコマンドとの統合テスト
+    - Tauri コマンドとの統合テスト
     - ファイル操作のテスト
     - 認証フローのテスト
     - _Requirements: 全要件_
 
-- [ ] 13. macOSネイティブ機能の統合
-  - [ ] 13.1 macOSシステム統合の実装
+- [ ] 13. macOS ネイティブ機能の統合
+
+  - [ ] 13.1 macOS システム統合の実装
+
     - システムテーマの自動検出
     - ネイティブメニューバーの実装
-    - Finderとの連携機能
+    - Finder との連携機能
     - _Requirements: 7.2, 7.3_
 
   - [ ] 13.2 キーボードショートカットの実装
-    - macOS標準ショートカットのサポート
+    - macOS 標準ショートカットのサポート
     - カスタムショートカットの設定
     - アクセシビリティ対応
     - _Requirements: 7.2, 7.3_
 
 - [ ] 14. ビルドとパッケージング
+
   - [ ] 14.1 ビルドプロセスの統合
-    - 既存のbuild-macos.shスクリプトとの統合
-    - Tauriビルドコマンドの追加
+
+    - 既存の build-macos.sh スクリプトとの統合
+    - Tauri ビルドコマンドの追加
     - 依存関係の管理
     - _Requirements: 3.1, 3.2_
 
-  - [ ] 14.2 DMGパッケージの作成
-    - macOS用インストーラーの作成
+  - [ ] 14.2 DMG パッケージの作成
+    - macOS 用インストーラーの作成
     - アプリケーション署名の実装
     - 公証プロセスの統合
     - _Requirements: 3.1, 3.2, 3.3_
 
 - [ ] 15. 最終統合とテスト
-  - [ ] 15.1 E2Eテストの実装
-    - Playwrightを使用したE2Eテスト
+
+  - [ ] 15.1 E2E テストの実装
+
+    - Playwright を使用した E2E テスト
     - 主要ユーザーフローのテスト
     - パフォーマンステストの実装
     - _Requirements: 全要件_
 
   - [ ] 15.2 最終的な統合とポリッシュ
     - 全機能の統合テスト
-    - UIの最終調整とポリッシュ
+    - UI の最終調整とポリッシュ
     - ドキュメントの作成
     - _Requirements: 全要件_

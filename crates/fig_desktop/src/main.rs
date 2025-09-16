@@ -50,6 +50,9 @@ async fn main() {
             chat::start_new_conversation,
             chat::get_all_conversations,
             chat::delete_conversation,
+            chat::rename_conversation,
+            chat::search_conversations,
+            chat::get_conversation_stats,
             // File operation commands
             file_ops::read_file_content,
             file_ops::save_file_content,

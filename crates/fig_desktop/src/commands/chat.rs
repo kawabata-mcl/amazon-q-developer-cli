@@ -312,6 +312,8 @@ pub async fn delete_conversation(
     state: State<'_, Arc<Mutex<AppState>>>,
     conversation_id: String,
 ) -> Result<(), String> {
+    info!("Deleting conversation: {}", conversation_id);
+
     let mut app_state = state.lock().await;
 
     match app_state.conversations.remove(&conversation_id) {
@@ -321,7 +323,7 @@ pub async fn delete_conversation(
                 app_state.current_conversation_id = None;
             }
 
-            info!("Deleted conversation: {}", conversation_id);
+            info!("Successfully deleted conversation: {}", conversation_id);
             Ok(())
         },
         None => {
@@ -330,4 +332,141 @@ pub async fn delete_conversation(
             Err(error_msg)
         },
     }
+}
+
+/// Rename conversation command
+#[tauri::command]
+pub async fn rename_conversation(
+    state: State<'_, Arc<Mutex<AppState>>>,
+    conversation_id: String,
+    new_title: String,
+) -> Result<(), String> {
+    info!("Renaming conversation {} to: {}", conversation_id, new_title);
+
+    if new_title.trim().is_empty() {
+        return Err("Conversation title cannot be empty".to_string());
+    }
+
+    let mut app_state = state.lock().await;
+
+    match app_state.conversations.get_mut(&conversation_id) {
+        Some(conversation) => {
+            conversation.title = new_title.trim().to_string();
+            conversation.updated_at = OffsetDateTime::now_utc();
+            
+            info!("Successfully renamed conversation: {}", conversation_id);
+            Ok(())
+        },
+        None => {
+            let error_msg = format!("Conversation to rename not found: {}", conversation_id);
+            error!("{}", error_msg);
+            Err(error_msg)
+        },
+    }
+}
+
+/// Search conversations command
+#[tauri::command]
+pub async fn search_conversations(
+    state: State<'_, Arc<Mutex<AppState>>>,
+    query: String,
+    limit: Option<usize>,
+) -> Result<Vec<GuiConversationState>, String> {
+    info!("Searching conversations with query: {}", query);
+
+    if query.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let app_state = state.lock().await;
+    let query_lower = query.to_lowercase();
+    let search_limit = limit.unwrap_or(50);
+
+    let mut matching_conversations: Vec<GuiConversationState> = app_state
+        .conversations
+        .values()
+        .filter(|conv| {
+            // Search in conversation title
+            if conv.title.to_lowercase().contains(&query_lower) {
+                return true;
+            }
+            
+            // Search in message content
+            conv.messages.iter().any(|msg| {
+                msg.content.to_lowercase().contains(&query_lower)
+            })
+        })
+        .cloned()
+        .collect();
+
+    // Sort by relevance (title matches first, then by update time)
+    matching_conversations.sort_by(|a, b| {
+        let a_title_match = a.title.to_lowercase().contains(&query_lower);
+        let b_title_match = b.title.to_lowercase().contains(&query_lower);
+        
+        match (a_title_match, b_title_match) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => b.updated_at.cmp(&a.updated_at), // Most recent first
+        }
+    });
+
+    // Apply limit
+    matching_conversations.truncate(search_limit);
+
+    info!("Found {} matching conversations", matching_conversations.len());
+    Ok(matching_conversations)
+}
+
+/// Get conversation statistics command
+#[tauri::command]
+pub async fn get_conversation_stats(
+    state: State<'_, Arc<Mutex<AppState>>>,
+) -> Result<ConversationStats, String> {
+    info!("Getting conversation statistics");
+
+    let app_state = state.lock().await;
+    let conversations = &app_state.conversations;
+
+    let total_conversations = conversations.len();
+    let total_messages: usize = conversations.values()
+        .map(|conv| conv.messages.len())
+        .sum();
+
+    let now = OffsetDateTime::now_utc();
+    let today_start = now.date().midnight().assume_utc();
+    let week_start = today_start - time::Duration::days(7);
+    let month_start = today_start - time::Duration::days(30);
+
+    let conversations_today = conversations.values()
+        .filter(|conv| conv.updated_at >= today_start)
+        .count();
+
+    let conversations_this_week = conversations.values()
+        .filter(|conv| conv.updated_at >= week_start)
+        .count();
+
+    let conversations_this_month = conversations.values()
+        .filter(|conv| conv.updated_at >= month_start)
+        .count();
+
+    let stats = ConversationStats {
+        total_conversations,
+        total_messages,
+        conversations_today,
+        conversations_this_week,
+        conversations_this_month,
+    };
+
+    info!("Conversation statistics: {:?}", stats);
+    Ok(stats)
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct ConversationStats {
+    pub total_conversations: usize,
+    pub total_messages: usize,
+    pub conversations_today: usize,
+    pub conversations_this_week: usize,
+    pub conversations_this_month: usize,
 }
