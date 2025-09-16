@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Copy, Check, User, Bot, AlertCircle, RefreshCw, Clock, CheckCircle } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { Button } from '@/components/ui/button';
+import { MessageContent } from './message-content';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -133,10 +134,8 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
               : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
             }
           `}>
-            {/* Message content with basic markdown-like formatting */}
-            <div className="prose prose-sm max-w-none dark:prose-invert">
-              <MessageContent content={message.content} />
-            </div>
+            {/* Message content with syntax highlighting */}
+            <MessageContent content={message.content} />
 
             {/* Tool uses display */}
             {message.toolUses && message.toolUses.length > 0 && (
@@ -224,68 +223,3 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
   );
 }
 
-// Component to render message content with basic formatting
-function MessageContent({ content }: { content: string }) {
-  // Basic code block detection and formatting
-  const renderContent = () => {
-    // Split content by code blocks (```...```)
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        // Code block
-        const codeContent = part.slice(3, -3);
-        const lines = codeContent.split('\n');
-        const language = lines[0].trim();
-        const code = lines.slice(1).join('\n');
-        
-        return (
-          <div key={index} className="my-4">
-            {language && (
-              <div className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-mono">
-                {language}
-              </div>
-            )}
-            <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-              <code>{code}</code>
-            </pre>
-          </div>
-        );
-      } else {
-        // Regular text with inline code formatting
-        const textParts = part.split(/(`[^`]+`)/g);
-        return (
-          <div key={index}>
-            {textParts.map((textPart, textIndex) => {
-              if (textPart.startsWith('`') && textPart.endsWith('`')) {
-                // Inline code
-                return (
-                  <code 
-                    key={textIndex}
-                    className="bg-gray-200 dark:bg-gray-700 px-1 py-0.5 rounded text-sm font-mono"
-                  >
-                    {textPart.slice(1, -1)}
-                  </code>
-                );
-              } else {
-                // Regular text - preserve line breaks
-                return (
-                  <span key={textIndex}>
-                    {textPart.split('\n').map((line, lineIndex, lines) => (
-                      <span key={lineIndex}>
-                        {line}
-                        {lineIndex < lines.length - 1 && <br />}
-                      </span>
-                    ))}
-                  </span>
-                );
-              }
-            })}
-          </div>
-        );
-      }
-    });
-  };
-
-  return <div>{renderContent()}</div>;
-}
