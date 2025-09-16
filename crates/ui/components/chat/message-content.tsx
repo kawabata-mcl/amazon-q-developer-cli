@@ -3,7 +3,9 @@
 import { useMemo } from 'react'
 import { CodeBlock } from '@/components/ui/code-block'
 import { InlineCode } from '@/components/ui/inline-code'
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { extractCodeBlocks, extractInlineCode, formatCode, detectLanguage } from '@/lib/code-utils'
+import { shouldRenderAsMarkdown, processMarkdownContent } from '@/lib/markdown-utils'
 import { cn } from '@/lib/utils'
 
 interface MessageContentProps {
@@ -19,7 +21,24 @@ interface ContentPart {
 }
 
 export function MessageContent({ content, className }: MessageContentProps) {
+  // Determine rendering strategy
+  const renderingStrategy = useMemo(() => {
+    const isMarkdown = shouldRenderAsMarkdown(content)
+    const processedContent = processMarkdownContent(content)
+    
+    return {
+      isMarkdown,
+      processedContent,
+      shouldWarnUnsafe: processedContent.hasUnsafeContent
+    }
+  }, [content])
+
   const contentParts = useMemo(() => {
+    // If content should be rendered as markdown, skip the legacy parsing
+    if (renderingStrategy.isMarkdown) {
+      return []
+    }
+
     const parts: ContentPart[] = []
     const codeBlocks = extractCodeBlocks(content)
     const inlineCodeBlocks = extractInlineCode(content)
@@ -48,8 +67,8 @@ export function MessageContent({ content, className }: MessageContentProps) {
     for (const element of allCodeElements) {
       // Add text before this code element
       if (currentIndex < element.startIndex) {
-        const textContent = content.slice(currentIndex, element.startIndex)
-        if (textContent.trim()) {
+        const textContent = content.slice(currentIndex, element.startIndex).trimEnd()
+        if (textContent !== '') {
           parts.push({
             type: 'text',
             content: textContent,
@@ -71,8 +90,8 @@ export function MessageContent({ content, className }: MessageContentProps) {
     
     // Add remaining text
     if (currentIndex < content.length) {
-      const textContent = content.slice(currentIndex)
-      if (textContent.trim()) {
+      const textContent = content.slice(currentIndex).trimStart()
+      if (textContent !== '') {
         parts.push({
           type: 'text',
           content: textContent,
@@ -91,53 +110,38 @@ export function MessageContent({ content, className }: MessageContentProps) {
     }
     
     return parts
-  }, [content])
+  }, [content, renderingStrategy.isMarkdown])
 
   const renderTextContent = (text: string) => {
-    // Handle inline code within text
-    const inlineCodeMatches = extractInlineCode(text)
-    
-    if (inlineCodeMatches.length === 0) {
-      return <span className="whitespace-pre-wrap">{text}</span>
-    }
-    
-    const textParts: React.ReactNode[] = []
-    let currentIndex = 0
-    
-    inlineCodeMatches.forEach((match, index) => {
-      // Add text before inline code
-      if (currentIndex < match.startIndex) {
-        const beforeText = text.slice(currentIndex, match.startIndex)
-        textParts.push(
-          <span key={`text-${index}`} className="whitespace-pre-wrap">
-            {beforeText}
-          </span>
-        )
-      }
-      
-      // Add inline code
-      textParts.push(
-        <InlineCode key={`code-${index}`}>
-          {match.code}
-        </InlineCode>
-      )
-      
-      currentIndex = match.endIndex
-    })
-    
-    // Add remaining text
-    if (currentIndex < text.length) {
-      const remainingText = text.slice(currentIndex)
-      textParts.push(
-        <span key="text-end" className="whitespace-pre-wrap">
-          {remainingText}
-        </span>
-      )
-    }
-    
-    return <>{textParts}</>
+    // Legacy text rendering: do not attempt to re-detect inline code here to avoid duplicates
+    return <span className="whitespace-pre-wrap">{text}</span>
   }
 
+  // Render markdown content
+  if (renderingStrategy.isMarkdown) {
+    return (
+      <div className={cn('space-y-4', className)}>
+        {renderingStrategy.shouldWarnUnsafe && (
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4">
+            <div className="flex items-center space-x-2">
+              <svg className="w-4 h-4 text-yellow-600 dark:text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <span className="text-sm text-yellow-800 dark:text-yellow-200">
+                Some potentially unsafe content was removed from this message.
+              </span>
+            </div>
+          </div>
+        )}
+        <MarkdownRenderer 
+          content={renderingStrategy.processedContent.sanitized} 
+          className="markdown-content"
+        />
+      </div>
+    )
+  }
+
+  // Render legacy content parsing for non-markdown content
   return (
     <div className={cn('space-y-4', className)}>
       {contentParts.map((part) => {
@@ -154,7 +158,7 @@ export function MessageContent({ content, className }: MessageContentProps) {
           
           case 'inline-code':
             return (
-              <InlineCode key={part.index}>
+              <InlineCode key={part.index} showBackticks>
                 {part.content}
               </InlineCode>
             )
