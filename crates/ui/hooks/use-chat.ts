@@ -1,18 +1,32 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useChatStore } from '@/stores/chat-store';
-import type { ChatError, ConversationStats } from '@/types/chat';
+import { useStableCallback, useDebouncedCallback, useSelector } from '@/lib/optimization-utils';
+import type { ChatError, ConversationStats, ChatConversation } from '@/types/chat';
 
 /**
- * Custom hook for chat functionality
+ * Custom hook for chat functionality with optimized selectors
  * Provides convenient methods for chat operations
  */
 export function useChat() {
+  // Use optimized selectors to prevent unnecessary re-renders
+  const currentConversation = useSelector(
+    useChatStore,
+    (state) => state.currentConversation,
+    (a, b) => a?.id === b?.id && a?.updatedAt.getTime() === b?.updatedAt.getTime()
+  );
+  
+  const conversations = useSelector(
+    useChatStore,
+    (state) => state.conversations,
+    (a, b) => a.length === b.length && a.every((conv, i) => conv.id === b[i]?.id)
+  );
+  
+  const isLoading = useSelector(useChatStore, (state) => state.isLoading);
+  const isStreaming = useSelector(useChatStore, (state) => state.isStreaming);
+  const error = useSelector(useChatStore, (state) => state.error);
+  
+  // Get actions from store
   const {
-    currentConversation,
-    conversations,
-    isLoading,
-    isStreaming,
-    error,
     sendMessage,
     retryMessage,
     startNewConversation,
@@ -24,10 +38,13 @@ export function useChat() {
     renameConversation,
     searchConversations,
     getConversationStats,
+    getCurrentMessages,
+    getConversationById,
+    getFilteredConversations,
   } = useChatStore();
 
-  // Send a message with error handling
-  const handleSendMessage = useCallback(async (message: string) => {
+  // Optimized message sending with debouncing to prevent rapid submissions
+  const handleSendMessage = useStableCallback(async (message: string) => {
     if (!message.trim()) {
       throw new Error('Message cannot be empty');
     }
@@ -40,8 +57,8 @@ export function useChat() {
     }
   }, [sendMessage]);
 
-  // Retry a failed message
-  const handleRetryMessage = useCallback(async (messageId: string) => {
+  // Optimized handlers with stable callbacks
+  const handleRetryMessage = useStableCallback(async (messageId: string) => {
     try {
       await retryMessage(messageId);
     } catch (error) {
@@ -50,8 +67,7 @@ export function useChat() {
     }
   }, [retryMessage]);
 
-  // Start a new conversation with error handling
-  const handleNewConversation = useCallback(async () => {
+  const handleNewConversation = useStableCallback(async () => {
     try {
       const conversationId = await startNewConversation();
       return conversationId;
@@ -61,8 +77,7 @@ export function useChat() {
     }
   }, [startNewConversation]);
 
-  // Load a specific conversation
-  const handleLoadConversation = useCallback(async (conversationId: string) => {
+  const handleLoadConversation = useStableCallback(async (conversationId: string) => {
     try {
       await loadConversation(conversationId);
     } catch (error) {
@@ -71,8 +86,7 @@ export function useChat() {
     }
   }, [loadConversation]);
 
-  // Refresh conversation history
-  const handleRefreshHistory = useCallback(async () => {
+  const handleRefreshHistory = useStableCallback(async () => {
     try {
       await loadConversationHistory();
     } catch (error) {
@@ -81,8 +95,7 @@ export function useChat() {
     }
   }, [loadConversationHistory]);
 
-  // Delete conversation
-  const handleDeleteConversation = useCallback(async (conversationId: string) => {
+  const handleDeleteConversation = useStableCallback(async (conversationId: string) => {
     try {
       await deleteConversation(conversationId);
     } catch (error) {
@@ -91,8 +104,7 @@ export function useChat() {
     }
   }, [deleteConversation]);
 
-  // Rename conversation
-  const handleRenameConversation = useCallback(async (conversationId: string, newTitle: string) => {
+  const handleRenameConversation = useStableCallback(async (conversationId: string, newTitle: string) => {
     if (!newTitle.trim()) {
       throw new Error('Conversation title cannot be empty');
     }
@@ -105,8 +117,8 @@ export function useChat() {
     }
   }, [renameConversation]);
 
-  // Search conversations
-  const handleSearchConversations = useCallback(async (query: string, limit?: number) => {
+  // Debounced search to prevent excessive API calls
+  const handleSearchConversations = useDebouncedCallback(async (query: string, limit?: number) => {
     if (!query.trim()) {
       return [];
     }
@@ -117,10 +129,9 @@ export function useChat() {
       console.error('Failed to search conversations:', error);
       throw error;
     }
-  }, [searchConversations]);
+  }, 300, [searchConversations]);
 
-  // Get conversation statistics
-  const handleGetStats = useCallback(async () => {
+  const handleGetStats = useStableCallback(async () => {
     try {
       return await getConversationStats();
     } catch (error) {
@@ -129,34 +140,39 @@ export function useChat() {
     }
   }, [getConversationStats]);
 
-  // Check if we can send messages
-  const canSendMessage = !isLoading && !isStreaming;
+  // Memoized computed values to prevent unnecessary recalculations
+  const canSendMessage = useMemo(() => !isLoading && !isStreaming, [isLoading, isStreaming]);
+  
+  const messages = useMemo(() => getCurrentMessages(), [getCurrentMessages]);
+  
+  const hasMessages = useMemo(() => messages.length > 0, [messages.length]);
+  
+  const canRetry = useMemo(() => error?.retryable === true, [error?.retryable]);
+  
+  // Memoized conversation finder
+  const findConversation = useCallback((id: string) => getConversationById(id), [getConversationById]);
+  
+  // Memoized conversation filter
+  const filterConversations = useCallback((filter: string) => getFilteredConversations(filter), [getFilteredConversations]);
 
-  // Get current conversation messages
-  const messages = currentConversation?.messages || [];
-
-  // Check if there are any messages
-  const hasMessages = messages.length > 0;
-
-  // Check if error is retryable
-  const canRetry = error?.retryable === true;
-
-  // Get error message for display
-  const getErrorMessage = useCallback((error: ChatError | null): string => {
-    if (!error) return '';
-    
-    switch (error.type) {
-      case 'network':
-        return 'Network connection failed. Please check your internet connection and try again.';
-      case 'auth':
-        return 'Authentication failed. Please log in again.';
-      case 'validation':
-        return 'Invalid input. Please check your message and try again.';
-      case 'server':
-        return 'Server error occurred. Please try again later.';
-      default:
-        return error.message || 'An unexpected error occurred.';
-    }
+  // Memoized error message formatter
+  const getErrorMessage = useMemo(() => {
+    return (error: ChatError | null): string => {
+      if (!error) return '';
+      
+      switch (error.type) {
+        case 'network':
+          return 'Network connection failed. Please check your internet connection and try again.';
+        case 'auth':
+          return 'Authentication failed. Please log in again.';
+        case 'validation':
+          return 'Invalid input. Please check your message and try again.';
+        case 'server':
+          return 'Server error occurred. Please try again later.';
+        default:
+          return error.message || 'An unexpected error occurred.';
+      }
+    };
   }, []);
 
   return {
@@ -186,7 +202,9 @@ export function useChat() {
     searchConversations: handleSearchConversations,
     getConversationStats: handleGetStats,
     
-    // Helpers
+    // Optimized helpers
+    findConversation,
+    filterConversations,
     getErrorMessage,
   };
 }

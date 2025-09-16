@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, memo, useMemo } from 'react';
 import { Copy, Check, User, Bot, AlertCircle, RefreshCw, Clock, CheckCircle } from 'lucide-react';
 import type { ChatMessage } from '@/types/chat';
 import { Button } from '@/components/ui/button';
 import { MessageContent } from './message-content';
+import { useStableCallback } from '@/lib/optimization-utils';
 
 interface MessageItemProps {
   message: ChatMessage;
@@ -13,11 +14,16 @@ interface MessageItemProps {
   onRetry?: (messageId: string) => Promise<void>;
 }
 
-export function MessageItem({ message, className = '', onRetry }: MessageItemProps) {
+const MessageItemComponent = memo(function MessageItem({ 
+  message, 
+  className = '', 
+  onRetry 
+}: MessageItemProps) {
   const [copied, setCopied] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
 
-  const handleCopy = async () => {
+  // Stable callback handlers
+  const handleCopy = useStableCallback(async () => {
     try {
       await navigator.clipboard.writeText(message.content);
       setCopied(true);
@@ -25,9 +31,9 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
     } catch (error) {
       console.error('Failed to copy message:', error);
     }
-  };
+  }, [message.content]);
 
-  const handleRetry = async () => {
+  const handleRetry = useStableCallback(async () => {
     if (!onRetry || isRetrying) return;
     
     try {
@@ -38,21 +44,23 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
     } finally {
       setIsRetrying(false);
     }
-  };
+  }, [onRetry, message.id, isRetrying]);
 
-  const formatTimestamp = (timestamp: Date) => {
+  // Memoized timestamp formatting
+  const formattedTimestamp = useMemo(() => {
     return new Intl.DateTimeFormat('ja-JP', {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-    }).format(timestamp);
-  };
+    }).format(message.timestamp);
+  }, [message.timestamp]);
 
-  const isUser = message.role === 'user';
-  const isAssistant = message.role === 'assistant';
+  // Memoized role checks
+  const isUser = useMemo(() => message.role === 'user', [message.role]);
+  const isAssistant = useMemo(() => message.role === 'assistant', [message.role]);
   
-  // Status indicators
-  const getStatusIcon = () => {
+  // Memoized status indicators
+  const statusIcon = useMemo(() => {
     switch (message.status) {
       case 'sending':
         return <Clock className="w-3 h-3 text-yellow-500 animate-pulse" />;
@@ -67,9 +75,9 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
       default:
         return null;
     }
-  };
+  }, [message.status]);
 
-  const getStatusText = () => {
+  const statusText = useMemo(() => {
     switch (message.status) {
       case 'sending':
         return 'Sending...';
@@ -84,7 +92,7 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
       default:
         return '';
     }
-  };
+  }, [message.status, message.error]);
 
   return (
     <div className={`flex items-start space-x-4 group ${className}`} data-testid="message-item">
@@ -112,14 +120,14 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
             {isUser ? 'You' : isAssistant ? 'Amazon Q' : 'System'}
           </span>
           <span className="text-xs text-gray-500 dark:text-gray-400">
-            {formatTimestamp(message.timestamp)}
+            {formattedTimestamp}
           </span>
           {/* Status indicator */}
           {message.status && (
             <div className="flex items-center space-x-1">
-              {getStatusIcon()}
+              {statusIcon}
               <span className="text-xs text-gray-500 dark:text-gray-400">
-                {getStatusText()}
+                {statusText}
               </span>
             </div>
           )}
@@ -221,5 +229,24 @@ export function MessageItem({ message, className = '', onRetry }: MessageItemPro
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for optimal re-rendering
+  const prevMsg = prevProps.message;
+  const nextMsg = nextProps.message;
+  
+  return (
+    prevMsg.id === nextMsg.id &&
+    prevMsg.content === nextMsg.content &&
+    prevMsg.status === nextMsg.status &&
+    prevMsg.error === nextMsg.error &&
+    prevMsg.timestamp.getTime() === nextMsg.timestamp.getTime() &&
+    prevProps.className === nextProps.className &&
+    prevProps.onRetry === nextProps.onRetry &&
+    prevProps.isLatest === nextProps.isLatest
+  );
+});
+
+MessageItemComponent.displayName = 'MessageItem';
+
+export const MessageItem = MessageItemComponent;
 

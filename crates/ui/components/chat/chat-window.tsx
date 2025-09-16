@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo, useMemo } from 'react';
 import { useChat } from '@/hooks/use-chat';
 import { VirtualMessageList } from './virtual-message-list';
 import { MessageInput } from './message-input';
@@ -9,12 +9,14 @@ import { FileDropZone } from './file-drop-zone';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FolderOpen, X } from 'lucide-react';
+import { useStableCallback, useDebouncedCallback } from '@/lib/optimization-utils';
+import { OptimizedComponent } from '@/components/optimized/memo-wrapper';
 
 interface ChatWindowProps {
   className?: string;
 }
 
-export function ChatWindow({ className = '' }: ChatWindowProps) {
+const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWindowProps) {
   const {
     currentConversation,
     messages,
@@ -40,39 +42,44 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
     }
   }, [currentConversation, startNewConversation]);
 
-  const handleSendMessage = async (message: string) => {
+  // Optimized message sending with debouncing to prevent rapid submissions
+  const handleSendMessage = useDebouncedCallback(async (message: string) => {
     try {
       await sendMessage(message);
     } catch (error) {
       console.error('Failed to send message:', error);
     }
-  };
+  }, 100, [sendMessage]);
 
-  const handleRetryMessage = async (messageId: string) => {
+  // Stable callback handlers
+  const handleRetryMessage = useStableCallback(async (messageId: string) => {
     try {
       await retryMessage(messageId);
     } catch (error) {
       console.error('Failed to retry message:', error);
     }
-  };
+  }, [retryMessage]);
 
-  const handleNewChat = async () => {
+  const handleNewChat = useStableCallback(async () => {
     try {
       await startNewConversation();
     } catch (error) {
       console.error('Failed to start new conversation:', error);
     }
-  };
+  }, [startNewConversation]);
 
-  const handleFileAdded = (fileName: string) => {
+  const handleFileAdded = useStableCallback((fileName: string) => {
     console.log('File added to context:', fileName);
     // Optionally show a success message or update UI
-  };
+  }, []);
 
-  const handleFileError = (error: string) => {
+  const handleFileError = useStableCallback((error: string) => {
     setFileDropError(error);
     setTimeout(() => setFileDropError(null), 5000); // Clear error after 5 seconds
-  };
+  }, []);
+
+  // Memoized error message
+  const errorMessage = useMemo(() => error ? getErrorMessage(error) : null, [error, getErrorMessage]);
 
   return (
     <div className={`flex h-full ${className}`} data-testid="chat-window">
@@ -84,7 +91,7 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
             <div className="flex items-center justify-between">
               <div className="flex-1">
                 <div className="text-red-600 dark:text-red-400 text-sm font-medium mb-1">
-                  {getErrorMessage(error)}
+                  {errorMessage}
                 </div>
                 {error.details && (
                   <div className="text-red-500 dark:text-red-400 text-xs">
@@ -140,21 +147,30 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
 
         {/* Chat Messages Area */}
         <div className="flex-1 overflow-hidden">
-          {hasMessages ? (
-            <VirtualMessageList 
-              messages={messages}
-              isLoading={isStreaming}
-              onRetryMessage={handleRetryMessage}
-              enableDynamicHeight={true}
-              itemHeight={120}
-            />
-          ) : (
-            <WelcomeScreen 
-              onNewChat={handleNewChat}
-              onFileAdded={handleFileAdded}
-              onFileError={handleFileError}
-            />
-          )}
+          <OptimizedComponent
+            shouldUpdate={(prev, next) => 
+              prev.hasMessages !== next.hasMessages ||
+              prev.messages !== next.messages ||
+              prev.isStreaming !== next.isStreaming
+            }
+            debugName="ChatMessagesArea"
+          >
+            {hasMessages ? (
+              <VirtualMessageList 
+                messages={messages}
+                isLoading={isStreaming}
+                onRetryMessage={handleRetryMessage}
+                enableDynamicHeight={true}
+                itemHeight={120}
+              />
+            ) : (
+              <WelcomeScreen 
+                onNewChat={handleNewChat}
+                onFileAdded={handleFileAdded}
+                onFileError={handleFileError}
+              />
+            )}
+          </OptimizedComponent>
         </div>
 
         {/* Message Input Area */}
@@ -209,9 +225,15 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  return prevProps.className === nextProps.className;
+});
 
-function WelcomeScreen({ 
+ChatWindowComponent.displayName = 'ChatWindow';
+
+export const ChatWindow = ChatWindowComponent;
+
+const WelcomeScreen = memo(function WelcomeScreen({ 
   onNewChat, 
   onFileAdded, 
   onFileError 
@@ -286,4 +308,4 @@ function WelcomeScreen({
       </div>
     </div>
   );
-}
+});

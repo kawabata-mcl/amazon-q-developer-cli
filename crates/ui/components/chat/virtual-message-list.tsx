@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useState, useMemo, memo } from 'react';
 import { VirtualMessageItem } from './virtual-message-item';
 import { Spinner } from '@/components/ui/spinner';
 import { useVirtualScroll, useScrollManager } from '@/hooks/use-virtual-scroll';
+import { useStableCallback, useMemoWithEquality, useThrottledCallback } from '@/lib/optimization-utils';
+import { withMemo, OptimizedComponent } from '@/components/optimized/memo-wrapper';
 import type { ChatMessage } from '@/types/chat';
 
 interface VirtualMessageListProps {
@@ -19,7 +21,7 @@ interface VirtualMessageListProps {
 const DEFAULT_ITEM_HEIGHT = 120; // Estimated height per message
 const DEFAULT_CONTAINER_HEIGHT = 600; // Default container height
 
-export function VirtualMessageList({
+const VirtualMessageListComponent = memo(function VirtualMessageList({
   messages,
   isLoading = false,
   className = '',
@@ -91,22 +93,27 @@ export function VirtualMessageList({
     }
   }, [isLoading, shouldAutoScroll, scrollToBottom]);
 
-  // Handle scroll events with throttling
-  const onScroll = useCallback((event: React.UIEvent<HTMLDivElement>) => {
+  // Optimized scroll handler with throttling
+  const onScroll = useThrottledCallback((event: React.UIEvent<HTMLDivElement>) => {
     const target = event.currentTarget;
     setScrollOffset(target.scrollTop);
     handleScroll(event.nativeEvent);
-  }, [handleScroll, setScrollOffset]);
+  }, 16, [handleScroll, setScrollOffset]); // 60fps throttling
 
-  // Handle item height measurement
-  const handleHeightChange = useCallback((index: number, height: number) => {
+  // Stable height change handler
+  const handleHeightChange = useStableCallback((index: number, height: number) => {
     measureItem(index, height);
   }, [measureItem]);
 
-  // Memoize visible messages to prevent unnecessary re-renders
-  const visibleMessages = useMemo(() => {
-    return messages.slice(startIndex, endIndex + 1);
-  }, [messages, startIndex, endIndex]);
+  // Optimized visible messages calculation with custom equality
+  const visibleMessages = useMemoWithEquality(
+    () => messages.slice(startIndex, endIndex + 1),
+    [messages, startIndex, endIndex],
+    (a, b) => {
+      if (a.length !== b.length) return false;
+      return a.every((msg, i) => msg.id === b[i]?.id && msg.timestamp.getTime() === b[i]?.timestamp.getTime());
+    }
+  );
 
   // Render empty state
   if (messages.length === 0 && !isLoading) {
@@ -237,4 +244,27 @@ export function VirtualMessageList({
       )}
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison for optimal re-rendering
+  if (prevProps.isLoading !== nextProps.isLoading) return false;
+  if (prevProps.className !== nextProps.className) return false;
+  if (prevProps.itemHeight !== nextProps.itemHeight) return false;
+  if (prevProps.containerHeight !== nextProps.containerHeight) return false;
+  if (prevProps.enableDynamicHeight !== nextProps.enableDynamicHeight) return false;
+  if (prevProps.onRetryMessage !== nextProps.onRetryMessage) return false;
+  
+  // Deep comparison for messages array
+  if (prevProps.messages.length !== nextProps.messages.length) return false;
+  
+  return prevProps.messages.every((msg, i) => {
+    const nextMsg = nextProps.messages[i];
+    return msg.id === nextMsg?.id && 
+           msg.content === nextMsg?.content &&
+           msg.status === nextMsg?.status &&
+           msg.timestamp.getTime() === nextMsg?.timestamp.getTime();
+  });
+});
+
+VirtualMessageListComponent.displayName = 'VirtualMessageList';
+
+export const VirtualMessageList = VirtualMessageListComponent;
