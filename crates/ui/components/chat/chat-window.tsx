@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useChat } from '@/hooks/use-chat';
-import { MessageList } from './message-list';
+import { VirtualMessageList } from './virtual-message-list';
 import { MessageInput } from './message-input';
 import { FileContextManager } from './file-context-manager';
 import { FileDropZone } from './file-drop-zone';
@@ -141,10 +141,12 @@ export function ChatWindow({ className = '' }: ChatWindowProps) {
         {/* Chat Messages Area */}
         <div className="flex-1 overflow-hidden">
           {hasMessages ? (
-            <MessageList 
+            <VirtualMessageList 
               messages={messages}
               isLoading={isStreaming}
               onRetryMessage={handleRetryMessage}
+              enableDynamicHeight={true}
+              itemHeight={120}
             />
           ) : (
             <WelcomeScreen 

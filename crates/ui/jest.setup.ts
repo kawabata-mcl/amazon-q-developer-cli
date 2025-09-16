@@ -30,7 +30,7 @@ import { DEFAULT_SETTINGS } from '@/types/settings'
 
 // Mock Tauri API: provide sane defaults for commands used in tests
 jest.mock('@tauri-apps/api/tauri', () => ({
-  invoke: jest.fn(async (cmd: string, _args?: unknown) => {
+  invoke: jest.fn(async (cmd: string) => {
     switch (cmd) {
       case 'get_auth_status':
         return { type: 'NotAuthenticated' };
@@ -95,6 +95,31 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 })
+
+// Polyfill ResizeObserver for jsdom
+const g = globalThis as unknown as { ResizeObserver?: typeof ResizeObserver }
+if (!g.ResizeObserver) {
+  class ResizeObserverMock {
+    callback: ResizeObserverCallback
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback
+    }
+    observe(target: Element) {
+      // Immediately invoke with a minimal entry to satisfy components
+      const entry = {
+        target,
+        contentRect: target.getBoundingClientRect(),
+        borderBoxSize: [],
+        contentBoxSize: [],
+        devicePixelContentBoxSize: [],
+      } as unknown as ResizeObserverEntry
+      this.callback([entry], this as unknown as ResizeObserver)
+    }
+    unobserve() {}
+    disconnect() {}
+  }
+  g.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver
+}
 
 // Mock react-markdown and remark-gfm to avoid ESM transform issues in Jest
 import React from 'react'
