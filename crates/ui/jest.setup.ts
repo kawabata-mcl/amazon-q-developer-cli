@@ -46,6 +46,22 @@ jest.mock('@tauri-apps/api/tauri', () => ({
         return [];
       case 'get_all_conversations':
         return [];
+      // File operations
+      case 'read_file_content':
+        return { path: '/tmp/mock.txt', content: 'mock', size: 4, mime_type: 'text/plain' };
+      case 'save_file_content':
+        return undefined;
+      // File context operations
+      case 'get_context_files':
+        return [];
+      case 'add_file_context':
+        return undefined;
+      case 'add_file_to_context_by_path':
+        return undefined;
+      case 'remove_file_from_context':
+        return undefined;
+      case 'clear_context':
+        return undefined;
       // Settings related commands
       case 'get_app_settings':
         return DEFAULT_SETTINGS;
@@ -94,6 +110,15 @@ jest.mock('@/lib/tauri', () => ({
   getConversationHistoryCommand: jest.fn(),
   startNewConversationCommand: jest.fn(),
   getAllConversationsCommand: jest.fn(),
+  // File operations
+  readFileContentCommand: jest.fn(),
+  saveFileContentCommand: jest.fn(),
+  // File context
+  addFileContextCommand: jest.fn(),
+  addFileToContextByPathCommand: jest.fn(),
+  getContextFilesCommand: jest.fn(),
+  removeFileFromContextCommand: jest.fn(),
+  clearContextCommand: jest.fn(),
   // Settings
   getAppSettingsCommand: jest.fn(),
   updateAppSettingsCommand: jest.fn(),
