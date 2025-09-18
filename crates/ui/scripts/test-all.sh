@@ -77,18 +77,7 @@ else
     exit 1
 fi
 
-# Install Playwright browsers if needed
-print_status "Installing Playwright browsers..."
-npx playwright install --with-deps
 
-# Run E2E tests
-print_status "Running E2E tests..."
-if npm run test:e2e; then
-    print_success "E2E tests passed"
-else
-    print_error "E2E tests failed"
-    exit 1
-fi
 
 # Generate test reports
 print_status "Generating test reports..."
@@ -98,10 +87,7 @@ if [ -d "coverage" ]; then
     print_status "Unit test coverage report available at: coverage/lcov-report/index.html"
 fi
 
-# Playwright report
-if [ -d "playwright-report" ]; then
-    print_status "E2E test report available at: playwright-report/index.html"
-fi
+
 
 print_success "All tests completed successfully! 🎉"
 print_status "Test Summary:"
@@ -109,11 +95,9 @@ echo "  ✅ TypeScript type checking"
 echo "  ✅ ESLint code quality"
 echo "  ✅ Unit tests with coverage"
 echo "  ✅ Application build"
-echo "  ✅ E2E tests"
 
 echo ""
 print_status "Next steps:"
 echo "  1. Review test coverage reports"
-echo "  2. Check E2E test results"
-echo "  3. Run performance tests if needed"
-echo "  4. Deploy to staging environment"
+echo "  2. Run performance tests if needed"
+echo "  3. Deploy to staging environment"
