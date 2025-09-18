@@ -7,7 +7,7 @@ import os
 import shutil
 import time
 from typing import Any, Mapping, Sequence, List, Optional
-from const import APPLE_TEAM_ID, CHAT_BINARY_NAME, CHAT_PACKAGE_NAME, DESKTOP_PACKAGE_NAME, DESKTOP_PACKAGE_PATH
+from const import APPLE_TEAM_ID, CHAT_BINARY_NAME, CHAT_PACKAGE_NAME, DESKTOP_PACKAGE_NAME, DESKTOP_PACKAGE_PATH, TAURI_PRODUCT_NAME, APP_NAME
 from util import debug, info, isDarwin, isLinux, run_cmd, run_cmd_output, warn
 from rust import cargo_cmd_name, rust_env, rust_targets
 from importlib import import_module
@@ -533,28 +533,270 @@ def build_linux(chat_path: pathlib.Path, signer: GpgSigner | None):
         signer.clean()
 
 
-def build_desktop_app(release: bool = True):
+def sign_desktop_app(app_path: pathlib.Path, signing_data: CdSigningData) -> pathlib.Path:
     """
-    Builds the Tauri desktop application.
+    Sign the desktop application bundle.
+    
+    Args:
+        app_path: Path to the .app bundle
+        signing_data: Code signing data for macOS
+        
+    Returns:
+        Path to the signed app bundle
+    """
+    info(f"Signing desktop application: {app_path}")
+    
+    if not app_path.exists():
+        raise RuntimeError(f"App bundle not found: {app_path}")
+    
+    # Sign the app bundle using codesign
+    try:
+        # Sign all executables and frameworks within the app bundle
+        run_cmd([
+            "codesign", "--force", "--deep", "--sign", "Developer ID Application",
+            "--timestamp", "--options", "runtime", str(app_path)
+        ])
+        
+        # Verify the signature
+        run_cmd(["codesign", "--verify", "--verbose=4", str(app_path)])
+        
+        info("Desktop application signed successfully")
+        
+        # Notarize the application
+        notarize_desktop_app(app_path, signing_data)
+        
+        return app_path
+        
+    except Exception as e:
+        raise RuntimeError(f"Failed to sign desktop application: {e}")
+
+
+def notarize_desktop_app(app_path: pathlib.Path, signing_data: CdSigningData):
+    """
+    Submit the desktop application to Apple notary service.
+    
+    Args:
+        app_path: Path to the signed .app bundle
+        signing_data: Code signing data containing Apple ID credentials
+    """
+    info(f"Notarizing desktop application: {app_path}")
+    
+    # Load Apple ID credentials from secrets manager
+    secret_id = signing_data.apple_notarizing_secret_arn
+    secret_region = parse_region_from_arn(signing_data.apple_notarizing_secret_arn)
+    info(f"Loading secretmanager value: {secret_id}")
+    
+    secret_value = run_cmd_output([
+        "aws", "--region", secret_region, "secretsmanager", 
+        "get-secret-value", "--secret-id", secret_id
+    ])
+    secret_string = json.loads(secret_value)["SecretString"]
+    secrets = json.loads(secret_string)
+    
+    # Create ZIP archive for notarization
+    zip_path = BUILD_DIR / f"{app_path.name}.zip"
+    zip_path.unlink(missing_ok=True)
+    
+    info("Creating ZIP archive for notarization...")
+    run_cmd(["ditto", "-c", "-k", "--keepParent", str(app_path), str(zip_path)])
+    
+    # Submit to Apple notary service
+    info("Submitting to Apple notary service...")
+    submit_res = run_cmd_output([
+        "xcrun", "notarytool", "submit", str(zip_path),
+        "--team-id", APPLE_TEAM_ID,
+        "--apple-id", secrets["appleId"],
+        "--password", secrets["appleIdPassword"],
+        "--wait", "-f", "json"
+    ])
+    
+    debug(f"Notary service response: {submit_res}")
+    
+    # Verify notarization succeeded
+    result = json.loads(submit_res)
+    if result["status"] != "Accepted":
+        raise RuntimeError(f"Notarization failed: {result}")
+    
+    # Staple the notarization ticket to the app
+    info("Stapling notarization ticket...")
+    run_cmd(["xcrun", "stapler", "staple", str(app_path)])
+    
+    # Verify stapling
+    run_cmd(["xcrun", "stapler", "validate", str(app_path)])
+    
+    # Clean up
+    zip_path.unlink(missing_ok=True)
+    
+    info("Desktop application notarized successfully")
+
+
+def create_desktop_dmg(app_path: pathlib.Path, signing_data: CdSigningData | None = None) -> pathlib.Path:
+    """
+    Create DMG package for the desktop application.
+    
+    Args:
+        app_path: Path to the .app bundle
+        signing_data: Code signing data for macOS
+        
+    Returns:
+        Path to the created DMG file
+    """
+    info("Creating DMG package for desktop application")
+    
+    if not app_path.exists():
+        raise RuntimeError(f"App bundle not found: {app_path}")
+    
+    # DMG configuration
+    dmg_name = f"{TAURI_PRODUCT_NAME}.dmg"
+    dmg_path = BUILD_DIR / dmg_name
+    
+    # Remove existing DMG
+    dmg_path.unlink(missing_ok=True)
+    
+    # Create temporary directory for DMG contents
+    dmg_temp_dir = BUILD_DIR / "dmg_temp"
+    shutil.rmtree(dmg_temp_dir, ignore_errors=True)
+    dmg_temp_dir.mkdir(parents=True)
+    
+    # Copy app to temp directory
+    temp_app_path = dmg_temp_dir / app_path.name
+    shutil.copytree(app_path, temp_app_path)
+    
+    # Create Applications symlink
+    applications_link = dmg_temp_dir / "Applications"
+    applications_link.symlink_to("/Applications")
+    
+    # Create DMG using hdiutil (built-in macOS tool)
+    info(f"Creating DMG: {dmg_path}")
+    
+    # Create temporary DMG
+    temp_dmg = BUILD_DIR / "temp.dmg"
+    temp_dmg.unlink(missing_ok=True)
+    
+    run_cmd([
+        "hdiutil", "create",
+        "-srcfolder", str(dmg_temp_dir),
+        "-volname", APP_NAME,
+        "-fs", "HFS+",
+        "-fsargs", "-c c=64,a=16,e=16",
+        "-format", "UDRW",
+        str(temp_dmg)
+    ])
+    
+    # Mount the DMG for customization
+    info("Mounting DMG for customization...")
+    mount_output = run_cmd_output(["hdiutil", "attach", "-readwrite", "-noverify", str(temp_dmg)])
+    
+    # Extract mount point from output
+    mount_point = None
+    for line in mount_output.split('\n'):
+        if '/Volumes/' in line:
+            mount_point = line.split('\t')[-1].strip()
+            break
+    
+    if not mount_point:
+        raise RuntimeError("Failed to determine DMG mount point")
+    
+    info(f"DMG mounted at: {mount_point}")
+    
+    try:
+        # Set DMG window properties using AppleScript
+        applescript = f'''
+        tell application "Finder"
+            tell disk "{APP_NAME}"
+                open
+                set current view of container window to icon view
+                set toolbar visible of container window to false
+                set statusbar visible of container window to false
+                set the bounds of container window to {{100, 100, 760, 500}}
+                set viewOptions to the icon view options of container window
+                set arrangement of viewOptions to not arranged
+                set icon size of viewOptions to 128
+                set position of item "{app_path.name}" of container window to {{180, 170}}
+                set position of item "Applications" of container window to {{480, 170}}
+                set background picture of viewOptions to file ".background:background.png"
+                update without registering applications
+                delay 2
+            end tell
+        end tell
+        '''
+        
+        # Create background directory and add background image (optional)
+        background_dir = pathlib.Path(mount_point) / ".background"
+        background_dir.mkdir(exist_ok=True)
+        
+        # Run AppleScript to customize DMG appearance
+        try:
+            run_cmd(["osascript", "-e", applescript])
+        except Exception as e:
+            warn(f"Failed to customize DMG appearance: {e}")
+        
+        # Sync filesystem
+        run_cmd(["sync"])
+        
+    finally:
+        # Unmount the DMG
+        info("Unmounting DMG...")
+        run_cmd(["hdiutil", "detach", mount_point])
+    
+    # Convert to compressed read-only DMG
+    info("Converting to final DMG format...")
+    run_cmd([
+        "hdiutil", "convert", str(temp_dmg),
+        "-format", "UDZO",
+        "-imagekey", "zlib-level=9",
+        "-o", str(dmg_path)
+    ])
+    
+    # Clean up
+    temp_dmg.unlink(missing_ok=True)
+    shutil.rmtree(dmg_temp_dir, ignore_errors=True)
+    
+    # Sign DMG if signing data is provided
+    if signing_data:
+        info("Signing DMG...")
+        try:
+            run_cmd(["codesign", "--sign", "Developer ID Application", "--timestamp", str(dmg_path)])
+            info("DMG signed successfully")
+        except Exception as e:
+            warn(f"Failed to sign DMG: {e}")
+    
+    # Generate SHA256 checksum
+    generate_sha(dmg_path)
+    
+    info(f"DMG created successfully: {dmg_path}")
+    return dmg_path
+
+
+def build_desktop_app(release: bool = True, signing_data: CdSigningData | None = None):
+    """
+    Build Tauri desktop application with proper integration into existing build process.
     
     Args:
         release: Whether to build in release mode
+        signing_data: Code signing data for macOS
     """
     info("Building desktop application")
     
-    # Check if Tauri CLI is installed
+    # Ensure Tauri CLI is available (should be installed by build-macos.sh)
     try:
-        run_cmd_output(["cargo", "tauri", "--version"])
-    except Exception:
-        warn("Tauri CLI not found. Installing...")
-        run_cmd(["cargo", "install", "tauri-cli@1.6.0", "--locked"])
+        tauri_version = run_cmd_output(["cargo", "+1.79.0", "tauri", "--version"])
+        info(f"Using Tauri CLI: {tauri_version.strip()}")
+    except Exception as e:
+        raise RuntimeError(f"Tauri CLI not found. Please ensure it's installed: {e}")
     
-    # Build desktop application
-    args = ["cargo", "tauri", "build"]
+    # Build frontend first
+    info("Building frontend...")
+    ui_path = pathlib.Path("crates") / "ui"
+    run_cmd(["npm", "ci"], cwd=ui_path)
+    run_cmd(["npm", "run", "build"], cwd=ui_path)
+    
+    # Build Tauri application
+    args = ["cargo", "+1.79.0", "tauri", "build"]
     if not release:
         args.append("--debug")
     
-    # Create universal binary for macOS
+    # macOS specific configuration
     if isDarwin():
         args.extend(["--target", "universal-apple-darwin"])
     
@@ -567,7 +809,52 @@ def build_desktop_app(release: bool = True):
         },
     )
     
-    info("Desktop application build completed")
+    # Handle build artifacts
+    target_dir = "release" if release else "debug"
+    if isDarwin():
+        app_path = DESKTOP_PACKAGE_PATH / "src-tauri" / "target" / "universal-apple-darwin" / target_dir / "bundle" / "macos" / f"{TAURI_PRODUCT_NAME}.app"
+        dmg_path = DESKTOP_PACKAGE_PATH / "src-tauri" / "target" / "universal-apple-darwin" / target_dir / "bundle" / "dmg" / f"{TAURI_PRODUCT_NAME}.dmg"
+        
+        if app_path.exists():
+            info(f"Desktop app built successfully: {app_path}")
+            
+            # Copy to build directory for consistency
+            build_app_path = BUILD_DIR / f"{TAURI_PRODUCT_NAME}.app"
+            if build_app_path.exists():
+                shutil.rmtree(build_app_path)
+            shutil.copytree(app_path, build_app_path)
+            
+            # Sign and notarize the application if signing data is provided
+            if signing_data:
+                try:
+                    build_app_path = sign_desktop_app(build_app_path, signing_data)
+                    info("Desktop application signed and notarized successfully")
+                except Exception as e:
+                    warn(f"Failed to sign desktop application: {e}")
+                    # Continue with unsigned app
+            
+            # Create custom DMG package
+            try:
+                dmg_path = create_desktop_dmg(build_app_path, signing_data)
+                info(f"Custom DMG created: {dmg_path}")
+            except Exception as e:
+                warn(f"Failed to create custom DMG: {e}")
+                
+                # Fallback: use Tauri-generated DMG if it exists
+                tauri_dmg_path = DESKTOP_PACKAGE_PATH / "src-tauri" / "target" / "universal-apple-darwin" / target_dir / "bundle" / "dmg" / f"{TAURI_PRODUCT_NAME}.dmg"
+                if tauri_dmg_path.exists():
+                    build_dmg_path = BUILD_DIR / f"{TAURI_PRODUCT_NAME}.dmg"
+                    shutil.copy2(tauri_dmg_path, build_dmg_path)
+                    info(f"Using Tauri-generated DMG: {build_dmg_path}")
+                    generate_sha(build_dmg_path)
+            
+            return build_app_path
+        else:
+            raise RuntimeError(f"Desktop app build failed - app not found at {app_path}")
+    else:
+        # Linux/Windows support can be added later
+        warn("Desktop app build currently only supports macOS")
+        return None
 
 
 def build(
@@ -628,10 +915,11 @@ def build(
         targets=targets,
     )
 
-    # Build desktop app only on macOS (currently macOS only)
+    # Build desktop app on macOS (currently macOS-only)
+    desktop_app_path = None
     if isDarwin():
         info("Building", DESKTOP_PACKAGE_NAME)
-        build_desktop_app(release=release)
+        desktop_app_path = build_desktop_app(release=release, signing_data=signing_data)
 
     if isDarwin():
         build_macos(chat_path, signing_data)

@@ -59,12 +59,13 @@ rustup target add aarch64-apple-darwin
 rustup install 1.79.0
 cargo +1.79.0 install tauri-cli@1.6.0 --locked
 
-# create python venv and install dmgbuild
+# create python venv and install required Python deps for build scripts
 python3.11 -m venv .venv
 source .venv/bin/activate
-pip3 install -r build-scripts/requirements.txt
+pip3 install --upgrade pip
+pip3 install boto3 requests
 
-python3.11 build-scripts/main.py build \
+python3.11 scripts/main.py build \
   --output-bucket "${output_bucket:-}" \
   --signing-bucket "${signing_bucket:-}" \
   --apple-id-secret "${apple_id_secret:-}" \

@@ -1,12 +1,12 @@
 {
   "build": {
-    "beforeDevCommand": "cd ui && npm run dev",
-    "beforeBuildCommand": "cd ui && npm run build",
+    "beforeDevCommand": "cd ../ui && npm run dev",
+    "beforeBuildCommand": "cd ../ui && npm run build",
     "devPath": "http://localhost:3000",
     "distDir": "../../ui/out"
   },
   "package": {
-    "productName": "Amazon Q Desktop",
+    "productName": "q_desktop",
     "version": "1.15.0"
   },
   "tauri": {
@@ -62,10 +62,16 @@
       }
     },
     "bundle": {
-      "active": false,
-      "targets": "all",
-      "identifier": "com.amazon.q-desktop",
-      "icon": [],
+      "active": true,
+      "targets": ["dmg"],
+      "identifier": "com.amazon.codewhisperer",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
       "category": "DeveloperTool",
       "shortDescription": "Amazon Q Developer Desktop Application",
       "longDescription": "macOS GUI application for Amazon Q Developer CLI. Provides intuitive interface to access Amazon Q Developer functionality.",
@@ -75,7 +81,21 @@
         "exceptionDomain": "",
         "signingIdentity": null,
         "providerShortName": null,
-        "entitlements": null
+        "entitlements": null,
+        "dmg": {
+          "appPosition": {
+            "x": 180,
+            "y": 170
+          },
+          "applicationFolderPosition": {
+            "x": 480,
+            "y": 170
+          },
+          "windowSize": {
+            "width": 660,
+            "height": 400
+          }
+        }
       },
       "windows": {
         "certificateThumbprint": null,

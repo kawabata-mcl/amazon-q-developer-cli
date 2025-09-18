@@ -7,6 +7,9 @@ license.workspace = true
 homepage.workspace = true
 publish.workspace = true
 
+[build-dependencies]
+tauri-build.workspace = true
+
 [lib]
 name = "fig_desktop"
 path = "src/lib.rs"
