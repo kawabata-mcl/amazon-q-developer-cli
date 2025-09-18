@@ -18,6 +18,7 @@ export function useChat() {
     conversations,
     isLoading,
     isStreaming,
+    isWaitingForResponse,
     error,
     sendMessage,
     retryMessage,
@@ -39,6 +40,7 @@ export function useChat() {
     conversations: ChatConversation[];
     isLoading: boolean;
     isStreaming: boolean;
+    isWaitingForResponse: boolean;
     error: ChatError | null;
     sendMessage: (message: string) => Promise<void>;
     retryMessage: (messageId: string) => Promise<void>;
@@ -205,6 +207,7 @@ export function useChat() {
     messages: resolvedMessages,
     isLoading,
     isStreaming,
+    isWaitingForResponse,
     error,
     canSendMessage,
     hasMessages,

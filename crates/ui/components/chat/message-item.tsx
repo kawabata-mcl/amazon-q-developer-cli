@@ -2,6 +2,7 @@
 
 import { useState, memo, useMemo } from 'react';
 import { Copy, Check, User, Bot, AlertCircle, RefreshCw, Clock, CheckCircle } from 'lucide-react';
+import { Spinner } from '@/components/ui/spinner';
 import type { ChatMessage } from '@/types/chat';
 import { Button } from '@/components/ui/button';
 import { MessageContent } from './message-content';
@@ -84,7 +85,7 @@ const MessageItemComponent = memo(function MessageItem({
       case 'sent':
         return 'Sent';
       case 'streaming':
-        return 'Receiving...';
+        return 'Thinking...';
       case 'completed':
         return 'Completed';
       case 'failed':
@@ -215,6 +216,7 @@ const MessageItemComponent = memo(function MessageItem({
               )}
             </button>
           </div>
+
 
           {/* Error message display */}
           {message.status === 'failed' && message.error && (

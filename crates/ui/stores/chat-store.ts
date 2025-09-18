@@ -32,6 +32,7 @@ interface ChatState {
   // UI state
   isLoading: boolean;
   isStreaming: boolean;
+  isWaitingForResponse: boolean;
   error: ChatError | null;
   
   // Message state tracking
@@ -101,6 +102,7 @@ export const useChatStore = create<ChatState>()(
       messages: [],
       isLoading: false,
       isStreaming: false,
+      isWaitingForResponse: false,
       error: null,
       pendingMessages: new Map(),
       _asyncManager: new AsyncOperationManager(),
@@ -188,7 +190,7 @@ export const useChatStore = create<ChatState>()(
               get().updateMessageStatus(userMessageId, 'sent');
 
               // Prepare streaming
-              set({ isStreaming: true });
+              set({ isStreaming: true, isWaitingForResponse: true });
               let unlisten: UnlistenFn | null = null;
               let accumulated = '';
               let streamError: string | null = null;
@@ -239,6 +241,10 @@ export const useChatStore = create<ChatState>()(
                     content_len: (event.payload?.content || '').length,
                     has_error: !!event.payload?.error,
                   });
+                  // Stop showing thinking indicator when first chunk arrives
+                  if (!receivedAnyChunk) {
+                    set({ isWaitingForResponse: false });
+                  }
                   receivedAnyChunk = true;
                   const chunk = event.payload;
                   // Channel is scoped by conversation id; no extra filtering needed
@@ -324,11 +330,12 @@ export const useChatStore = create<ChatState>()(
                         },
                         isStreaming: false,
                         isLoading: false,
+                        isWaitingForResponse: false,
                       });
                     } else {
                       console.log('[chat-store] stream completed', { eventName, assistantMessageId, accumulated_len: accumulated.length });
                       get().updateMessageStatus(assistantMessageId, 'completed');
-                      set({ isStreaming: false, isLoading: false });
+                      set({ isStreaming: false, isLoading: false, isWaitingForResponse: false });
                     }
                     
                     if (unlisten) {
@@ -387,6 +394,10 @@ export const useChatStore = create<ChatState>()(
                       }
                       return;
                     }
+                    // Stop showing thinking indicator when first chunk arrives
+                    if (!receivedAnyChunk) {
+                      set({ isWaitingForResponse: false });
+                    }
                     receivedAnyChunk = true;
                     accumulated += chunk.content || '';
                     const currentState = get();
@@ -428,11 +439,11 @@ export const useChatStore = create<ChatState>()(
                         get().updateMessageStatus(assistantMessageId, 'failed', streamError);
                         set({ 
                           error: { type: 'server', message: 'Failed to complete message', details: streamError, retryable: true },
-                          isStreaming: false, isLoading: false,
+                          isStreaming: false, isLoading: false, isWaitingForResponse: false,
                         });
                       } else {
                         get().updateMessageStatus(assistantMessageId, 'completed');
-                        set({ isStreaming: false, isLoading: false });
+                        set({ isStreaming: false, isLoading: false, isWaitingForResponse: false });
                       }
                       if (unlisten) { unlisten(); unlisten = null; }
                       if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
@@ -484,6 +495,7 @@ export const useChatStore = create<ChatState>()(
                             }],
                         isStreaming: false,
                         isLoading: false,
+                        isWaitingForResponse: false,
                       }));
                       if (unlisten) {
                         unlisten();
@@ -510,6 +522,7 @@ export const useChatStore = create<ChatState>()(
                         } : m),
                         isStreaming: false,
                         isLoading: false,
+                        isWaitingForResponse: false,
                         error: {
                           type: 'server',
                           message: 'No response received from stream',

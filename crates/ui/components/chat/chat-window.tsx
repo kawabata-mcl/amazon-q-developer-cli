@@ -158,7 +158,7 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
           {hasMessages ? (
             <VirtualMessageList 
               messages={messages}
-              isLoading={isStreaming}
+              isLoading={false}
               onRetryMessage={handleRetryMessage}
               enableDynamicHeight={true}
               itemHeight={120}

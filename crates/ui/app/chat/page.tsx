@@ -24,7 +24,6 @@ function ChatPageContent() {
     <MainLayout
       title="Amazon Q Developer"
       connectionStatus="connected"
-      lastActivity={new Date()}
       onNewChat={handleNewChat}
       onSettingsClick={handleSettingsClick}
     >

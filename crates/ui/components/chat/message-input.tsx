@@ -46,7 +46,7 @@ export function MessageInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -260,7 +260,7 @@ export function MessageInput({
 
         {/* Help text */}
         <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-          You can drag and drop files to add them as context. Press Enter to send, Shift+Enter for new line.
+          You can drag and drop files to add them as context. Press Enter for new line, Shift+Enter to send.
         </div>
       </div>
     </div>

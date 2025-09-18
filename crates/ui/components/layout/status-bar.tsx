@@ -9,31 +9,19 @@ import {
   Circle, 
   CheckCircle, 
   AlertCircle, 
-  XCircle,
-  Clock
+  XCircle
 } from "lucide-react"
 
 export interface StatusBarProps {
   connectionStatus?: 'connected' | 'disconnected' | 'connecting'
-  lastActivity?: Date
   className?: string
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({
   connectionStatus = 'connected',
-  lastActivity,
   className
 }) => {
-  const [currentTime, setCurrentTime] = React.useState(new Date())
   const { status, isAuthenticating, user } = useAuth()
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
 
   const getConnectionIcon = () => {
     switch (connectionStatus) {
@@ -93,29 +81,6 @@ const StatusBar: React.FC<StatusBarProps> = ({
     }
   }
 
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  }
-
-  const formatLastActivity = (date: Date) => {
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-    
-    if (diffInSeconds < 60) {
-      return 'Just now'
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60)
-      return `${minutes}m ago`
-    } else {
-      const hours = Math.floor(diffInSeconds / 3600)
-      return `${hours}h ago`
-    }
-  }
 
   return (
     <div
@@ -136,19 +101,6 @@ const StatusBar: React.FC<StatusBarProps> = ({
           <span className="hidden sm:inline">{getAuthText()}</span>
         </div>
 
-        {lastActivity && (
-          <div className="flex items-center gap-1.5" title={`Last activity: ${lastActivity.toLocaleString()}`}>
-            <Clock className="h-4 w-4" />
-            <span className="hidden md:inline">
-              Last activity: {formatLastActivity(lastActivity)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Right section - Current time */}
-      <div className="flex items-center gap-1.5">
-        <span>{formatTime(currentTime)}</span>
       </div>
     </div>
   )

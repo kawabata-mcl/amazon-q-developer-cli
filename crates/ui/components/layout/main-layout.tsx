@@ -10,7 +10,6 @@ export interface MainLayoutProps {
   children: React.ReactNode
   title?: string
   connectionStatus?: 'connected' | 'disconnected' | 'connecting'
-  lastActivity?: Date
   onNewChat?: () => void
   onSettingsClick?: () => void
   className?: string
@@ -20,7 +19,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   children,
   title,
   connectionStatus,
-  lastActivity,
   onNewChat,
   onSettingsClick,
   className
@@ -62,7 +60,6 @@ const MainLayout: React.FC<MainLayoutProps> = ({
         {/* Status bar */}
         <StatusBar
           connectionStatus={connectionStatus}
-          lastActivity={lastActivity}
         />
       </div>
     </div>
