@@ -99,28 +99,28 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
 // Helper functions
 function getErrorTitle(errorType: ErrorType): string {
   const titles: Record<ErrorType, string> = {
-    [ErrorType.AUTH_FAILED]: '認証エラー',
-    [ErrorType.AUTH_EXPIRED]: 'セッション期限切れ',
-    [ErrorType.AUTH_INVALID]: '認証無効',
-    [ErrorType.NETWORK_ERROR]: 'ネットワークエラー',
-    [ErrorType.NETWORK_TIMEOUT]: 'タイムアウト',
-    [ErrorType.NETWORK_OFFLINE]: 'オフライン',
-    [ErrorType.API_ERROR]: 'APIエラー',
-    [ErrorType.API_RATE_LIMIT]: 'レート制限',
-    [ErrorType.API_UNAVAILABLE]: 'サービス利用不可',
-    [ErrorType.FILE_NOT_FOUND]: 'ファイル未発見',
-    [ErrorType.FILE_ACCESS_DENIED]: 'アクセス拒否',
-    [ErrorType.FILE_TOO_LARGE]: 'ファイルサイズ超過',
-    [ErrorType.FILE_INVALID_FORMAT]: '無効なファイル形式',
-    [ErrorType.CHAT_SEND_FAILED]: 'メッセージ送信失敗',
-    [ErrorType.CHAT_HISTORY_LOAD_FAILED]: '履歴読み込み失敗',
-    [ErrorType.CHAT_CONTEXT_ERROR]: 'コンテキストエラー',
-    [ErrorType.SETTINGS_LOAD_FAILED]: '設定読み込み失敗',
-    [ErrorType.SETTINGS_SAVE_FAILED]: '設定保存失敗',
-    [ErrorType.SYSTEM_ERROR]: 'システムエラー',
-    [ErrorType.INITIALIZATION_ERROR]: '初期化エラー',
-    [ErrorType.VALIDATION_ERROR]: '入力エラー',
-    [ErrorType.UNKNOWN_ERROR]: '不明なエラー'
+    [ErrorType.AUTH_FAILED]: 'Authentication Error',
+    [ErrorType.AUTH_EXPIRED]: 'Session Expired',
+    [ErrorType.AUTH_INVALID]: 'Invalid Authentication',
+    [ErrorType.NETWORK_ERROR]: 'Network Error',
+    [ErrorType.NETWORK_TIMEOUT]: 'Timeout',
+    [ErrorType.NETWORK_OFFLINE]: 'Offline',
+    [ErrorType.API_ERROR]: 'API Error',
+    [ErrorType.API_RATE_LIMIT]: 'Rate Limit',
+    [ErrorType.API_UNAVAILABLE]: 'Service Unavailable',
+    [ErrorType.FILE_NOT_FOUND]: 'File Not Found',
+    [ErrorType.FILE_ACCESS_DENIED]: 'Access Denied',
+    [ErrorType.FILE_TOO_LARGE]: 'File Too Large',
+    [ErrorType.FILE_INVALID_FORMAT]: 'Invalid File Format',
+    [ErrorType.CHAT_SEND_FAILED]: 'Message Send Failed',
+    [ErrorType.CHAT_HISTORY_LOAD_FAILED]: 'History Load Failed',
+    [ErrorType.CHAT_CONTEXT_ERROR]: 'Context Error',
+    [ErrorType.SETTINGS_LOAD_FAILED]: 'Settings Load Failed',
+    [ErrorType.SETTINGS_SAVE_FAILED]: 'Settings Save Failed',
+    [ErrorType.SYSTEM_ERROR]: 'System Error',
+    [ErrorType.INITIALIZATION_ERROR]: 'Initialization Error',
+    [ErrorType.VALIDATION_ERROR]: 'Input Error',
+    [ErrorType.UNKNOWN_ERROR]: 'Unknown Error'
   };
   
   return titles[errorType] || titles[ErrorType.UNKNOWN_ERROR];
@@ -152,7 +152,7 @@ function getErrorActions(error: AppError): Array<{ label: string; action: () => 
     ErrorType.CHAT_SEND_FAILED
   ].includes(error.type)) {
     actions.push({
-      label: '再試行',
+      label: 'Retry',
       action: () => {
         // This would need to be implemented based on the specific context
         console.log('Retry action for error:', error.id);
@@ -167,7 +167,7 @@ function getErrorActions(error: AppError): Array<{ label: string; action: () => 
     ErrorType.AUTH_INVALID
   ].includes(error.type)) {
     actions.push({
-      label: 'ログイン',
+      label: 'Login',
       action: () => {
         // Navigate to login page or trigger login
         window.location.href = '/auth';

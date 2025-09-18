@@ -535,26 +535,26 @@ def build_linux(chat_path: pathlib.Path, signer: GpgSigner | None):
 
 def build_desktop_app(release: bool = True):
     """
-    Tauriデスクトップアプリケーションをビルドします。
+    Builds the Tauri desktop application.
     
     Args:
-        release: リリースビルドかどうか
+        release: Whether to build in release mode
     """
     info("Building desktop application")
     
-    # Tauri CLIがインストールされているかチェック
+    # Check if Tauri CLI is installed
     try:
         run_cmd_output(["cargo", "tauri", "--version"])
     except Exception:
         warn("Tauri CLI not found. Installing...")
         run_cmd(["cargo", "install", "tauri-cli@1.6.0", "--locked"])
     
-    # デスクトップアプリのビルド
+    # Build desktop application
     args = ["cargo", "tauri", "build"]
     if not release:
         args.append("--debug")
     
-    # macOS用のユニバーサルバイナリを作成
+    # Create universal binary for macOS
     if isDarwin():
         args.extend(["--target", "universal-apple-darwin"])
     
@@ -628,7 +628,7 @@ def build(
         targets=targets,
     )
 
-    # macOSでのみデスクトップアプリをビルド（現在はmacOS専用）
+    # Build desktop app only on macOS (currently macOS only)
     if isDarwin():
         info("Building", DESKTOP_PACKAGE_NAME)
         build_desktop_app(release=release)

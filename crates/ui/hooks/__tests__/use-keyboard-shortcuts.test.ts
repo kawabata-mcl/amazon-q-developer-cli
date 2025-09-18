@@ -31,13 +31,13 @@ describe('useKeyboardShortcuts', () => {
     useSettingsStore.setState({ settings: DEFAULT_SETTINGS, isLoading: false, error: null });
   });
 
-  test('ショートカット発火でデフォルトアクション（toggle-sidebar イベント）が発火する', async () => {
+  test('Shortcut trigger fires default action (toggle-sidebar event)', async () => {
     renderHook(() => useKeyboardShortcuts({}));
 
     const handler = jest.fn();
     window.addEventListener('toggle-sidebar', handler as unknown as EventListener);
 
-    await act(async () => {}); // エフェクト登録待ち
+    await act(async () => {}); // Wait for effect registration
 
     const event = new KeyboardEvent('keydown', {
       key: 'B',
@@ -73,7 +73,7 @@ describe('useKeyboardShortcuts', () => {
     expect(mockInvoke.mock.calls.length).toBeGreaterThan(unregisterCallsBefore);
   });
 
-  test('カスタムアクションを上書き可能', () => {
+  test('Custom actions can be overridden', () => {
     const custom = jest.fn();
     renderHook(() => useKeyboardShortcuts({ 'search': custom }));
 

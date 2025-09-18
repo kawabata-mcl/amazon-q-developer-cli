@@ -51,7 +51,7 @@ beforeEach(() => {
 })
 
 describe('CodeBlock', () => {
-  test('コード要素が言語クラス付きで描画され、内容が表示される', async () => {
+  test('Code element is rendered with language class and content is displayed', async () => {
     render(<CodeBlock code={'const x = 1;'} language="javascript" />)
 
     await waitFor(() => screen.getByText('Copy'))
@@ -60,7 +60,7 @@ describe('CodeBlock', () => {
     await waitFor(() => expect(codeNode.innerHTML).toContain('const x = 1;'))
   })
 
-  test('コピー操作でラベルがCopiedに変わる', async () => {
+  test('Copy operation changes label to Copied', async () => {
     render(<CodeBlock code={'console.log(1)'} language="javascript" />)
 
     const copyBtn = await screen.findByTitle('Copy code')
@@ -70,7 +70,7 @@ describe('CodeBlock', () => {
     await waitFor(() => expect(screen.getByText('Copied')).toBeInTheDocument())
   })
 
-  test('行番号が表示される', async () => {
+  test('Line numbers are displayed', async () => {
     const code = 'a\nb\nc'
     render(<CodeBlock code={code} language="javascript" showLineNumbers />)
 

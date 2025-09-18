@@ -299,7 +299,7 @@ mod tests {
             assert!(is_hidden(ch), "char U+{:X} should be hidden", ch as u32);
         }
 
-        for ch in ['a', '你', '\u{03A9}'] {
+        for ch in ['a', 'A', '\u{03A9}'] {
             assert!(!is_hidden(ch), "char {:?} should NOT be hidden", ch);
         }
     }

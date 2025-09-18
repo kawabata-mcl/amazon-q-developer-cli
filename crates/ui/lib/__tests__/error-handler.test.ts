@@ -24,7 +24,7 @@ describe('error-handler', () => {
     const appError = createAppError(new Error('settings load failed'))
     expect(appError.id).toBeTruthy()
     expect(appError.timestamp).toBeInstanceOf(Date)
-    expect(getUserFriendlyMessage(appError)).toMatch('設定の読み込みに失敗しました')
+    expect(getUserFriendlyMessage(appError)).toMatch('Failed to load settings')
   })
 
   it('emits and logs errors via handleError', () => {

@@ -2,7 +2,7 @@ import { renderHook, act } from '@testing-library/react'
 import { useVirtualScroll } from '@/hooks/use-virtual-scroll'
 
 describe('useVirtualScroll', () => {
-  test('固定高さで可視範囲が計算される', () => {
+  test('Visible range is calculated with fixed height', () => {
     const { result, rerender } = renderHook((props: any) => useVirtualScroll(props), {
       initialProps: {
         itemHeight: 100,
@@ -13,19 +13,19 @@ describe('useVirtualScroll', () => {
       },
     })
 
-    // 初期状態: 300pxで3つ+overscan*2
+    // Initial state: 300px for 3 items + overscan*2
     expect(result.current.startIndex).toBe(0)
     expect(result.current.visibleItems).toBeGreaterThan(0)
 
-    // スクロール更新
+    // Scroll update
     act(() => {
       result.current.setScrollOffset(500)
     })
 
-    // スクロール後はstartIndexが進む
+    // After scrolling, startIndex advances
     expect(result.current.startIndex).toBeGreaterThan(0)
 
-    // containerHeight変化に追従
+    // Follows containerHeight changes
     rerender({
       itemHeight: 100,
       containerHeight: 500,
@@ -36,7 +36,7 @@ describe('useVirtualScroll', () => {
     expect(result.current.visibleItems).toBeGreaterThan(0)
   })
 
-  test('動的高さが有効な時にmeasureItemで反映される', () => {
+  test('When dynamic height is enabled, it is reflected by measureItem', () => {
     const { result } = renderHook(() => useVirtualScroll({
       itemHeight: 100,
       containerHeight: 300,
@@ -45,15 +45,15 @@ describe('useVirtualScroll', () => {
       overscan: 1,
     }))
 
-    // 計測して高さを更新
+    // Measure and update height
     act(() => {
       result.current.measureItem(0, 200)
       result.current.setScrollOffset(150)
     })
 
-    // オフセットや範囲が計測結果で変わる
+    // Offset and range change based on measurement results
     expect(result.current.offsetY).toBeGreaterThanOrEqual(0)
-    expect(result.current.totalHeight).toBeGreaterThan(50 * 0) // 非ゼロ
+    expect(result.current.totalHeight).toBeGreaterThan(50 * 0) // Non-zero
   })
 })
 
