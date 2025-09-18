@@ -7,6 +7,7 @@ pub mod auth;
 pub mod chat;
 pub mod error_logging;
 pub mod file_ops;
+pub mod macos_integration;
 pub mod settings;
 
 // Common error types and response types

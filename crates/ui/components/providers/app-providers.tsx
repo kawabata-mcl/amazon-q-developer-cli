@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { useWindowState } from '@/hooks/use-window-state';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useSettings } from '@/hooks/use-settings';
+import { useMacOSIntegration } from '@/hooks/use-macos-integration';
 import { NotificationContainer } from '@/components/ui/notification-container';
 import { errorHandler } from '@/lib/error-handler';
 
@@ -16,14 +17,16 @@ export function AppProviders({ children }: AppProvidersProps) {
   return (
     <SettingsProvider>
       <ThemeProvider>
-        <WindowStateProvider>
-          <KeyboardShortcutProvider>
-            <ErrorHandlerProvider>
-              {children}
-              <NotificationContainer position="top-right" />
-            </ErrorHandlerProvider>
-          </KeyboardShortcutProvider>
-        </WindowStateProvider>
+        <MacOSIntegrationProvider>
+          <WindowStateProvider>
+            <KeyboardShortcutProvider>
+              <ErrorHandlerProvider>
+                {children}
+                <NotificationContainer position="top-right" />
+              </ErrorHandlerProvider>
+            </KeyboardShortcutProvider>
+          </WindowStateProvider>
+        </MacOSIntegrationProvider>
       </ThemeProvider>
     </SettingsProvider>
   );
@@ -92,6 +95,26 @@ function KeyboardShortcutProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new CustomEvent('open-settings'));
     }
   });
+
+  return <>{children}</>;
+}
+
+function MacOSIntegrationProvider({ children }: { children: React.ReactNode }) {
+  const { setupNativeMenu } = useMacOSIntegration();
+
+  useEffect(() => {
+    // Initialize macOS native menu on startup
+    const initializeMacOSFeatures = async () => {
+      try {
+        await setupNativeMenu();
+        console.log('macOS native menu initialized');
+      } catch (error) {
+        console.warn('Failed to initialize macOS native menu:', error);
+      }
+    };
+
+    initializeMacOSFeatures();
+  }, [setupNativeMenu]);
 
   return <>{children}</>;
 }

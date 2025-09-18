@@ -12,11 +12,15 @@ import {
   AlertCircle,
   Eye,
   Download,
-  RefreshCw
+  RefreshCw,
+  ExternalLink,
+  MoreHorizontal
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ContextMenu, useFileContextMenu, type ContextMenuItem } from '@/components/ui/context-menu';
 import { useFileContextStore } from '@/stores/file-context-store';
+import { useMacOSIntegration } from '@/hooks/use-macos-integration';
 import { FileViewer } from './file-viewer';
 import { FileEditor } from './file-editor';
 import { cn } from '@/lib/utils';
@@ -40,6 +44,9 @@ export function FileContextManager({
     getTotalFilesSize,
     getFileCount,
   } = useFileContextStore()
+
+  const { revealInFinder, openWithDefaultApp } = useMacOSIntegration()
+  const { contextMenu, showContextMenu, hideContextMenu, getFileContextMenuItems } = useFileContextMenu()
 
   // Ensure contextFiles is always an array to prevent runtime errors
   const safeContextFiles = Array.isArray(contextFiles) ? contextFiles : []
@@ -145,6 +152,75 @@ export function FileContextManager({
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const handleFileContextMenu = (event: React.MouseEvent, file: FileContextItem) => {
+    event.preventDefault();
+    showContextMenu(event, file.path);
+  };
+
+  const getCustomFileContextMenuItems = (file: FileContextItem): ContextMenuItem[] => [
+    {
+      id: 'view',
+      label: 'View',
+      icon: <Eye className="w-4 h-4" />,
+      onClick: () => handleFileSelect(file, 'viewer'),
+    },
+    ...(allowEditing ? [{
+      id: 'edit',
+      label: 'Edit',
+      icon: <Edit3 className="w-4 h-4" />,
+      onClick: () => handleFileSelect(file, 'editor'),
+    }] : []),
+    {
+      id: 'separator1',
+      label: '',
+      separator: true,
+      onClick: () => {},
+    },
+    {
+      id: 'open',
+      label: 'Open with Default App',
+      icon: <ExternalLink className="w-4 h-4" />,
+      onClick: () => openWithDefaultApp(file.path),
+    },
+    {
+      id: 'reveal',
+      label: 'Reveal in Finder',
+      icon: <FolderOpen className="w-4 h-4" />,
+      onClick: () => revealInFinder(file.path),
+    },
+    {
+      id: 'separator2',
+      label: '',
+      separator: true,
+      onClick: () => {},
+    },
+    {
+      id: 'download',
+      label: 'Download',
+      icon: <Download className="w-4 h-4" />,
+      onClick: () => downloadFile(file),
+    },
+    {
+      id: 'copy-path',
+      label: 'Copy Path',
+      onClick: () => {
+        navigator.clipboard.writeText(file.path);
+      },
+    },
+    {
+      id: 'separator3',
+      label: '',
+      separator: true,
+      onClick: () => {},
+    },
+    {
+      id: 'remove',
+      label: 'Remove from Context',
+      icon: <X className="w-4 h-4" />,
+      onClick: () => handleFileRemove(file.path),
+    },
+  ];
 
   // Render file viewer or editor
   if (viewMode === 'viewer' && selectedFile) {
@@ -291,6 +367,7 @@ export function FileContextManager({
                     <div 
                       className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
                       onClick={() => toggleFileExpansion(file.path)}
+                      onContextMenu={(e) => handleFileContextMenu(e, file)}
                     >
                       <span className="text-lg flex-shrink-0">
                         {getFileIcon(file.mimeType)}
@@ -338,11 +415,20 @@ export function FileContextManager({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => downloadFile(file)}
+                        onClick={() => revealInFinder(file.path)}
                         className="p-1 h-auto"
-                        title="Download file"
+                        title="Reveal in Finder"
                       >
-                        <Download className="w-4 h-4" />
+                        <FolderOpen className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => handleFileContextMenu(e, file)}
+                        className="p-1 h-auto"
+                        title="More options"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -371,6 +457,18 @@ export function FileContextManager({
           </div>
         )}
       </CardContent>
+
+      {/* Context menu */}
+      {contextMenu && (
+        <ContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onClose={hideContextMenu}
+          items={getCustomFileContextMenuItems(
+            safeContextFiles.find(f => f.path === contextMenu.filePath) || safeContextFiles[0]
+          )}
+        />
+      )}
     </Card>
   )
 }

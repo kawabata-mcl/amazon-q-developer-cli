@@ -85,7 +85,17 @@ async fn main() {
             error_logging::log_error,
             error_logging::get_error_logs,
             error_logging::clear_error_logs,
-            error_logging::get_error_log_size
+            error_logging::get_error_log_size,
+            // macOS integration commands
+            macos_integration::get_system_theme,
+            macos_integration::get_macos_system_info,
+            macos_integration::reveal_in_finder,
+            macos_integration::open_with_default_app,
+            macos_integration::setup_native_menu,
+            macos_integration::handle_menu_event,
+            macos_integration::is_voice_over_enabled,
+            macos_integration::is_high_contrast_enabled,
+            macos_integration::get_accessibility_settings
         ])
         .setup(|app| {
             info!("Tauri application setup completed");

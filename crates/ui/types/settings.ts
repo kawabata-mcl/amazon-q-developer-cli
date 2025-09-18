@@ -25,6 +25,7 @@ export interface WindowSettings {
 export interface KeyboardSettings {
   shortcuts: Record<string, string>;
   enableGlobalShortcuts: boolean;
+  enableAccessibilityShortcuts: boolean;
 }
 
 export interface GeneralSettings {
@@ -58,12 +59,29 @@ export const DEFAULT_SETTINGS: AppSettings = {
   keyboard: {
     shortcuts: {
       'new-conversation': 'Cmd+N',
-      'toggle-sidebar': 'Cmd+B',
-      'search': 'Cmd+F',
-      'settings': 'Cmd+,',
-      'quit': 'Cmd+Q'
+      'open': 'Cmd+O',
+      'save': 'Cmd+S',
+      'copy': 'Cmd+C',
+      'paste': 'Cmd+V',
+      'cut': 'Cmd+X',
+      'undo': 'Cmd+Z',
+      'redo': 'Cmd+Shift+Z',
+      'select-all': 'Cmd+A',
+      'find': 'Cmd+F',
+      'quit': 'Cmd+Q',
+      'minimize': 'Cmd+M',
+      'close-window': 'Cmd+W',
+      'toggle-fullscreen': 'Ctrl+Cmd+F',
+      'zoom-in': 'Cmd+Plus',
+      'zoom-out': 'Cmd+Minus',
+      'actual-size': 'Cmd+0',
+      'refresh': 'Cmd+R',
+      'settings': 'Cmd+Comma',
+      'toggle-sidebar': 'Cmd+Shift+S',
+      'search': 'Cmd+K',
     },
-    enableGlobalShortcuts: false
+    enableGlobalShortcuts: false,
+    enableAccessibilityShortcuts: true,
   },
   general: {
     autoSave: true,
