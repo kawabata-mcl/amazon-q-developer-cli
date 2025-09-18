@@ -1,5 +1,6 @@
+import { safeInvoke } from '@/lib/tauri-env';
 import { useState, useEffect, useCallback } from 'react'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 
 export interface SystemTheme {
@@ -56,7 +57,7 @@ export function useMacOSIntegration() {
   const revealInFinder = useCallback(async (path: string) => {
     try {
       setError(null)
-      await invoke('reveal_in_finder', { path })
+      await safeInvoke('reveal_in_finder', { path })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to reveal in Finder'
       setError(errorMessage)
@@ -68,7 +69,7 @@ export function useMacOSIntegration() {
   const openWithDefaultApp = useCallback(async (path: string) => {
     try {
       setError(null)
-      await invoke('open_with_default_app', { path })
+      await safeInvoke('open_with_default_app', { path })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to open with default app'
       setError(errorMessage)
@@ -80,7 +81,7 @@ export function useMacOSIntegration() {
   const setupNativeMenu = useCallback(async () => {
     try {
       setError(null)
-      await invoke('setup_native_menu')
+      await safeInvoke('setup_native_menu')
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to setup native menu'
       setError(errorMessage)
@@ -92,7 +93,7 @@ export function useMacOSIntegration() {
   const handleMenuEvent = useCallback(async (menuId: string) => {
     try {
       setError(null)
-      await invoke('handle_menu_event', { menuId })
+      await safeInvoke('handle_menu_event', { menuId })
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to handle menu event'
       setError(errorMessage)

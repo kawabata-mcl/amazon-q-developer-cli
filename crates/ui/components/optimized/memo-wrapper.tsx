@@ -17,10 +17,7 @@ export interface MemoWrapperProps<T = any> {
  * Memo wrapper component with configurable comparison
  */
 export const MemoWrapper = memo(<T,>({ 
-  children, 
-  deps, 
-  compareMode = 'shallow',
-  maxDepth = 3 
+  children 
 }: MemoWrapperProps<T>) => {
   return <>{children}</>;
 }, (prevProps, nextProps) => {
@@ -111,11 +108,11 @@ OptimizedComponent.displayName = 'OptimizedComponent';
 /**
  * Memoized forwardRef component
  */
-export function memoForwardRef<T, P = {}>(
+export function memoForwardRef<T, P = object>(
   Component: React.ForwardRefRenderFunction<T, P>,
   compareMode: 'shallow' | 'deep' | 'reference' = 'shallow'
 ) {
-  const ForwardedComponent = forwardRef(Component);
+  const ForwardedComponent = forwardRef<any, any>(Component as any);
   
   const MemoizedForwardRef = memo(ForwardedComponent, (prevProps, nextProps) => {
     switch (compareMode) {
@@ -137,14 +134,13 @@ export function memoForwardRef<T, P = {}>(
 /**
  * Hook for conditional rendering based on dependencies
  */
-export function useConditionalRender<T>(
+export function useConditionalRender<T extends readonly unknown[]>(
   renderFn: () => React.ReactNode,
-  deps: T,
-  compareMode: 'shallow' | 'deep' | 'reference' = 'shallow'
+  deps: T
 ): React.ReactNode {
   const memoizedRender = React.useMemo(() => {
     return renderFn();
-  }, [renderFn, deps, compareMode]);
+  }, [renderFn, ...deps]);
   
   return memoizedRender;
 }

@@ -1,10 +1,24 @@
 import { useEffect } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
-import { appWindow } from '@tauri-apps/api/window';
+import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from './use-settings';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+
+async function getAppWindow() {
+  if (typeof window === 'undefined') return null;
+  return getCurrentWebviewWindow();
+}
+
+type CurrentWindowState = {
+  width: number;
+  height: number;
+  x?: number;
+  y?: number;
+  maximized: boolean;
+  alwaysOnTop: boolean;
+};
 
 export function useWindowState() {
-  const { settings, updateSetting } = useSettings();
+  const { settings } = useSettings();
   const { rememberPosition } = settings.window;
 
   // Save current window state
@@ -17,41 +31,13 @@ export function useWindowState() {
   };
 
   // Get current window state
-  const getCurrentWindowState = async () => {
+  const getCurrentWindowState = async (): Promise<CurrentWindowState | null> => {
     try {
-      const windowState = await invoke('get_window_state');
+      const windowState = await invoke<CurrentWindowState>('get_window_state');
       return windowState;
     } catch (error) {
       console.error('Failed to get window state:', error);
       return null;
-    }
-  };
-
-  // Apply window settings
-  const applyWindowSettings = async () => {
-    try {
-      const { width, height, x, y, maximized, alwaysOnTop } = settings.window;
-
-      // Set window size
-      await appWindow.setSize({ width, height });
-
-      // Set window position if specified and remember position is enabled
-      if (rememberPosition && x !== undefined && y !== undefined) {
-        await appWindow.setPosition({ x, y });
-      }
-
-      // Set maximized state
-      if (maximized) {
-        await appWindow.maximize();
-      } else {
-        await appWindow.unmaximize();
-      }
-
-      // Set always on top
-      await appWindow.setAlwaysOnTop(alwaysOnTop);
-
-    } catch (error) {
-      console.error('Failed to apply window settings:', error);
     }
   };
 
@@ -68,24 +54,26 @@ export function useWindowState() {
     };
 
     // Listen for window resize and move events
-    const unlistenResize = appWindow.onResized(handleWindowEvent);
-    const unlistenMove = appWindow.onMoved(handleWindowEvent);
+    let unlistenResize: Promise<() => void> | null = null;
+    let unlistenMove: Promise<() => void> | null = null;
+
+    (async () => {
+      const win = await getAppWindow();
+      if (!win) return;
+      unlistenResize = win.onResized(handleWindowEvent);
+      unlistenMove = win.onMoved(handleWindowEvent);
+    })();
 
     return () => {
       clearTimeout(saveTimeout);
-      unlistenResize.then(fn => fn());
-      unlistenMove.then(fn => fn());
+      unlistenResize?.then(fn => fn()).catch(() => {});
+      unlistenMove?.then(fn => fn()).catch(() => {});
     };
   }, [rememberPosition]);
-
-  // Apply window settings when they change
-  useEffect(() => {
-    applyWindowSettings();
-  }, [settings.window]);
 
   return {
     saveWindowState,
     getCurrentWindowState,
-    applyWindowSettings
+    // フロントではウィンドウ操作を行わない
   };
 }

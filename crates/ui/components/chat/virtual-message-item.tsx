@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+
 import { MessageItem } from './message-item';
 import { useHeightMeasurement } from '@/hooks/use-element-size';
 import type { ChatMessage } from '@/types/chat';

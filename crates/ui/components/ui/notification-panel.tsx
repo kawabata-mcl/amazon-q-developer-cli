@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { X, Check, Trash2, Bell, BellOff } from 'lucide-react';
 import { useNotificationStore, type Notification } from '@/stores/notification-store';
-import { NotificationToast } from './notification-toast';
+
 import { cn } from '@/lib/utils';
 
 interface NotificationPanelProps {

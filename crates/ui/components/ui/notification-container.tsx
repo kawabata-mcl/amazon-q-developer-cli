@@ -20,7 +20,6 @@ export function NotificationContainer({
   className
 }: NotificationContainerProps) {
   const {
-    notifications,
     dismissNotification,
     markAsRead,
     getActiveNotifications

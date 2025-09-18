@@ -8,7 +8,6 @@ jest.mock('@/hooks/use-chat', () => ({
   useChat: jest.fn(),
 }));
 const useChatModule = jest.requireMock('@/hooks/use-chat') as { useChat: jest.Mock };
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { ChatWindow } = require('../chat-window');
 
 describe('ChatWindow', () => {

@@ -34,6 +34,7 @@ futures.workspace = true
 # Error handling
 thiserror.workspace = true
 eyre.workspace = true
+anyhow.workspace = true
 
 # Logging
 tracing.workspace = true
@@ -60,3 +61,6 @@ objc = "0.2"
 # Enable Tauri's default features
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(cargo_clippy)'] }

@@ -110,9 +110,8 @@ export function NotificationToast({
         styles.bgColor,
         styles.borderColor,
         {
-          'translate-x-full opacity-0': !isVisible,
-          'translate-x-0 opacity-100': isVisible && !isExiting,
-          'translate-x-full opacity-0': isExiting
+          'translate-x-full opacity-0': !isVisible || isExiting,
+          'translate-x-0 opacity-100': isVisible && !isExiting
         },
         className
       )}

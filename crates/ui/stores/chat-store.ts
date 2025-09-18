@@ -1,6 +1,7 @@
+import { safeInvoke } from '@/lib/tauri-env';
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { startNewConversationCommand, getConversationHistoryCommand, getAllConversationsCommand, sendMessageStreamCommand } from '@/lib/tauri';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { AsyncOperationManager, createMemoizer, shallowEqual } from '@/lib/optimization-utils';
@@ -12,6 +13,15 @@ import type {
   MessageStatus,
   ConversationStats
 } from '@/types/chat';
+
+// Helper function to check if operation was cancelled
+function checkCancellation(signal: AbortSignal): boolean {
+  if (signal.aborted) {
+    console.log('Operation was cancelled');
+    return true;
+  }
+  return false;
+}
 
 interface ChatState {
   // Current conversation state
@@ -132,7 +142,7 @@ export const useChatStore = create<ChatState>()(
               set({ isLoading: true, error: null });
 
               // Check if operation was cancelled
-              if (signal.aborted) {
+              if (checkCancellation(signal)) {
                 throw new Error('Operation cancelled');
               }
 
@@ -143,8 +153,8 @@ export const useChatStore = create<ChatState>()(
                 try {
                   targetConversationId = await startNewConversationCommand();
                   
-                  if (signal.aborted) {
-                    throw new Error('Operation cancelled');
+                  if (checkCancellation(signal)) {
+                    return; // Silently return instead of throwing
                   }
                   
                   set({
@@ -182,19 +192,56 @@ export const useChatStore = create<ChatState>()(
               let unlisten: UnlistenFn | null = null;
               let accumulated = '';
               let streamError: string | null = null;
+              let receivedAnyChunk = false;
+              let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
+
+              // Ensure a placeholder assistant message exists immediately for better UX
+              {
+                const latest = get();
+                const conv = latest.currentConversation;
+                if (conv) {
+                  const exists = conv.messages.some(m => m.id === assistantMessageId);
+                  if (!exists) {
+                    const assistantMessage: ChatMessage = {
+                      id: assistantMessageId,
+                      role: 'assistant',
+                      content: '',
+                      timestamp: new Date(),
+                      status: 'streaming',
+                    };
+                    set((s) => ({
+                      currentConversation: s.currentConversation ? {
+                        ...s.currentConversation,
+                        messages: [...(s.currentConversation.messages || []), assistantMessage],
+                        updatedAt: new Date(),
+                      } : null,
+                      messages: [...s.messages, assistantMessage],
+                    }));
+                  }
+                }
+              }
 
               try {
-                // Listen for streaming chunks
-                unlisten = await listen<StreamChunk>('message_chunk', (event) => {
+                // Listen for streaming chunks on conversation-specific channel
+                const eventName = `message_chunk_${targetConversationId}`;
+                console.log('[chat-store] listen: subscribing', {
+                  eventName,
+                  targetConversationId,
+                  userMessageId,
+                  assistantMessageId,
+                });
+                unlisten = await listen<StreamChunk>(eventName, (event) => {
+                  console.log('[chat-store] chunk received', {
+                    eventName,
+                    conversation_id: event.payload?.conversation_id,
+                    chunk_id: event.payload?.chunk_id,
+                    is_complete: event.payload?.is_complete,
+                    content_len: (event.payload?.content || '').length,
+                    has_error: !!event.payload?.error,
+                  });
+                  receivedAnyChunk = true;
                   const chunk = event.payload;
-                  
-                  // Check if chunk belongs to current conversation
-                  const latestState = get();
-                  if (chunk.conversation_id && 
-                      latestState.currentConversation && 
-                      chunk.conversation_id !== latestState.currentConversation.id) {
-                    return;
-                  }
+                  // Channel is scoped by conversation id; no extra filtering needed
 
                   // Handle error in chunk
                   if (chunk.error) {
@@ -232,18 +279,17 @@ export const useChatStore = create<ChatState>()(
                     
                     if (existingMessage) {
                       // Update existing message
-                      get().updateMessageStatus(assistantMessageId, 'streaming');
                       set((s) => ({
                         currentConversation: s.currentConversation ? {
                           ...s.currentConversation,
                           messages: s.currentConversation.messages.map(m => 
                             m.id === assistantMessageId 
-                              ? { ...m, content: accumulated, timestamp: new Date() }
+                              ? { ...m, content: accumulated, status: 'streaming', timestamp: new Date() }
                               : m
                           ),
                           updatedAt: new Date(),
                         } : null,
-                        messages: s.messages.map(m => m.id === assistantMessageId ? { ...m, content: accumulated, timestamp: new Date() } : m),
+                        messages: s.messages.map(m => m.id === assistantMessageId ? { ...m, content: accumulated, status: 'streaming', timestamp: new Date() } : m),
                       }));
                     } else {
                       // Create new assistant message
@@ -254,8 +300,14 @@ export const useChatStore = create<ChatState>()(
                         timestamp: new Date(),
                         status: 'streaming',
                       };
-                      get().addMessageToConversation(conversation.id, assistantMessage);
-                      set((s) => ({ messages: [...s.messages, assistantMessage] }));
+                      set((s) => ({
+                        currentConversation: s.currentConversation ? {
+                          ...s.currentConversation,
+                          messages: [...(s.currentConversation.messages || []), assistantMessage],
+                          updatedAt: new Date(),
+                        } : null,
+                        messages: [...s.messages, assistantMessage],
+                      }));
                     }
                   }
 
@@ -274,21 +326,205 @@ export const useChatStore = create<ChatState>()(
                         isLoading: false,
                       });
                     } else {
+                      console.log('[chat-store] stream completed', { eventName, assistantMessageId, accumulated_len: accumulated.length });
                       get().updateMessageStatus(assistantMessageId, 'completed');
                       set({ isStreaming: false, isLoading: false });
                     }
                     
                     if (unlisten) {
+                      console.log('[chat-store] unlisten on complete', { eventName });
                       unlisten();
                       unlisten = null;
+                    }
+                    if (fallbackTimer) {
+                      clearTimeout(fallbackTimer);
+                      fallbackTimer = null;
                     }
                   }
                 });
 
-                // Start streaming
-                await sendMessageStreamCommand(message);
-                // Ensure streaming flags are reset if no completion chunk was received
-                set({ isStreaming: false, isLoading: false });
+                // Start streaming with the active conversation id and capture actual id
+                const actualConvId = await sendMessageStreamCommand(message, targetConversationId);
+                if (actualConvId && actualConvId !== targetConversationId) {
+                  console.warn('[chat-store] conversation id mismatch', { expected: targetConversationId, actual: actualConvId });
+                  // Re-subscribe to the correct event channel
+                  const newEventName = `message_chunk_${actualConvId}`;
+                  if (unlisten) {
+                    unlisten();
+                    unlisten = null;
+                  }
+                  unlisten = await listen<StreamChunk>(newEventName, (event) => {
+                    // Reuse the same handler by delegating to the existing code path
+                    const chunk = event.payload;
+                    console.log('[chat-store] chunk received (resubscribed)', {
+                      eventName: newEventName,
+                      conversation_id: chunk?.conversation_id,
+                      chunk_id: chunk?.chunk_id,
+                      is_complete: chunk?.is_complete,
+                      content_len: (chunk?.content || '').length,
+                      has_error: !!chunk?.error,
+                    });
+                    // Duplicate of handler: accumulate and update state
+                    if (chunk.error) {
+                      streamError = chunk.error;
+                      const latest = get();
+                      const conv = latest.currentConversation;
+                      if (conv) {
+                        const existing = conv.messages.find(m => m.id === assistantMessageId);
+                        if (existing) {
+                          get().updateMessageStatus(assistantMessageId, 'failed', chunk.error);
+                        } else {
+                          const assistantMessage: ChatMessage = {
+                            id: assistantMessageId,
+                            role: 'assistant',
+                            content: '',
+                            timestamp: new Date(),
+                            status: 'failed',
+                            error: chunk.error,
+                          };
+                          get().addMessageToConversation(conv.id, assistantMessage);
+                        }
+                      }
+                      return;
+                    }
+                    receivedAnyChunk = true;
+                    accumulated += chunk.content || '';
+                    const currentState = get();
+                    const conversation = currentState.currentConversation;
+                    if (conversation) {
+                      const existingMessage = conversation.messages.find(m => m.id === assistantMessageId);
+                      if (existingMessage) {
+                        set((s) => ({
+                          currentConversation: s.currentConversation ? {
+                            ...s.currentConversation,
+                            messages: s.currentConversation.messages.map(m => m.id === assistantMessageId
+                              ? { ...m, content: accumulated, status: 'streaming', timestamp: new Date() }
+                              : m
+                            ),
+                            updatedAt: new Date(),
+                          } : null,
+                          messages: s.messages.map(m => m.id === assistantMessageId ? { ...m, content: accumulated, status: 'streaming', timestamp: new Date() } : m),
+                        }));
+                      } else {
+                        const assistantMessage: ChatMessage = {
+                          id: assistantMessageId,
+                          role: 'assistant',
+                          content: accumulated,
+                          timestamp: new Date(),
+                          status: 'streaming',
+                        };
+                        set((s) => ({
+                          currentConversation: s.currentConversation ? {
+                            ...s.currentConversation,
+                            messages: [...(s.currentConversation.messages || []), assistantMessage],
+                            updatedAt: new Date(),
+                          } : null,
+                          messages: [...s.messages, assistantMessage],
+                        }));
+                      }
+                    }
+                    if (chunk.is_complete) {
+                      if (streamError) {
+                        get().updateMessageStatus(assistantMessageId, 'failed', streamError);
+                        set({ 
+                          error: { type: 'server', message: 'Failed to complete message', details: streamError, retryable: true },
+                          isStreaming: false, isLoading: false,
+                        });
+                      } else {
+                        get().updateMessageStatus(assistantMessageId, 'completed');
+                        set({ isStreaming: false, isLoading: false });
+                      }
+                      if (unlisten) { unlisten(); unlisten = null; }
+                      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+                    }
+                  });
+                }
+                // フロント側のフラグは完了チャンクでのみリセットする
+
+                // Fallback: If no chunks arrive within 2s, poll conversation history once
+                fallbackTimer = setTimeout(async () => {
+                  if (receivedAnyChunk) return;
+                  try {
+                    const history = await getConversationHistoryCommand(targetConversationId!);
+                    const lastAssistant = [...history].reverse().find(m => m.role === 'assistant');
+                    if (lastAssistant) {
+                      // Populate assistant message from history and stop spinner
+                      set((s) => ({
+                        currentConversation: s.currentConversation ? {
+                          ...s.currentConversation,
+                          messages: s.currentConversation.messages.some(m => m.id === assistantMessageId)
+                            ? s.currentConversation.messages.map(m => m.id === assistantMessageId ? {
+                                ...m,
+                                content: lastAssistant.content,
+                                status: 'completed',
+                                timestamp: new Date(lastAssistant.timestamp),
+                              } : m)
+                            : [...s.currentConversation.messages, {
+                                id: assistantMessageId,
+                                role: 'assistant',
+                                content: lastAssistant.content,
+                                timestamp: new Date(lastAssistant.timestamp),
+                                status: 'completed',
+                              }],
+                          updatedAt: new Date(),
+                        } : null,
+                        messages: s.messages.some(m => m.id === assistantMessageId)
+                          ? s.messages.map(m => m.id === assistantMessageId ? {
+                              ...m,
+                              content: lastAssistant.content,
+                              status: 'completed',
+                              timestamp: new Date(lastAssistant.timestamp),
+                            } : m)
+                          : [...s.messages, {
+                              id: assistantMessageId,
+                              role: 'assistant',
+                              content: lastAssistant.content,
+                              timestamp: new Date(lastAssistant.timestamp),
+                              status: 'completed',
+                            }],
+                        isStreaming: false,
+                        isLoading: false,
+                      }));
+                      if (unlisten) {
+                        unlisten();
+                        unlisten = null;
+                      }
+                    } else {
+                      // No chunks and no history: mark as failed and stop spinner
+                      set((s) => ({
+                        currentConversation: s.currentConversation ? {
+                          ...s.currentConversation,
+                          messages: s.currentConversation.messages.map(m => m.id === assistantMessageId ? {
+                            ...m,
+                            status: 'failed',
+                            error: 'No response received from stream',
+                            timestamp: new Date(),
+                          } : m),
+                          updatedAt: new Date(),
+                        } : null,
+                        messages: s.messages.map(m => m.id === assistantMessageId ? {
+                          ...m,
+                          status: 'failed',
+                          error: 'No response received from stream',
+                          timestamp: new Date(),
+                        } : m),
+                        isStreaming: false,
+                        isLoading: false,
+                        error: {
+                          type: 'server',
+                          message: 'No response received from stream',
+                          retryable: true,
+                        },
+                      }));
+                      if (unlisten) {
+                        unlisten();
+                        unlisten = null;
+                      }
+                    }
+                  } catch (e) {
+                    console.warn('[chat-store] fallback history poll failed', e);
+                  }
+                }, 2000);
 
               } catch (invokeError) {
                 // Handle invoke error
@@ -305,10 +541,15 @@ export const useChatStore = create<ChatState>()(
                   isLoading: false,
                   isStreaming: false,
                 });
-              } finally {
-                // Cleanup listener
+                // Ensure we cleanup the listener on immediate invoke failures
                 if (unlisten) {
+                  console.log('[chat-store] unlisten on invoke error');
                   unlisten();
+                  unlisten = null;
+                }
+                if (fallbackTimer) {
+                  clearTimeout(fallbackTimer);
+                  fallbackTimer = null;
                 }
               }
             } catch (error) {
@@ -341,8 +582,9 @@ export const useChatStore = create<ChatState>()(
 
               const conversationId = await startNewConversationCommand();
               
-              if (signal.aborted) {
-                throw new Error('Operation cancelled');
+              if (checkCancellation(signal)) {
+                // キャンセル時でも生成済みIDを返して処理を穏便に終了
+                return conversationId;
               }
               
               const newConversation: ChatConversation = {
@@ -395,8 +637,8 @@ export const useChatStore = create<ChatState>()(
 
               const messages = await getConversationHistoryCommand(conversationId);
 
-              if (signal.aborted) {
-                throw new Error('Operation cancelled');
+              if (checkCancellation(signal)) {
+                return; // Silently return instead of throwing
               }
 
               const conversation: ChatConversation = {
@@ -444,8 +686,8 @@ export const useChatStore = create<ChatState>()(
               type ConversationSummary = { id: string; title?: string; created_at?: string; updated_at?: string };
               const summaries = await getAllConversationsCommand();
               
-              if (signal.aborted) {
-                throw new Error('Operation cancelled');
+              if (checkCancellation(signal)) {
+                return; // Silently return instead of throwing
               }
               
               const conversations = (summaries || []).map((s: ConversationSummary) => ({
@@ -539,7 +781,7 @@ export const useChatStore = create<ChatState>()(
       // Delete conversation
       deleteConversation: async (conversationId: string) => {
     try {
-      await invoke('delete_conversation', { conversation_id: conversationId });
+      await safeInvoke('delete_conversation', { conversation_id: conversationId });
       
       set((state) => ({
         conversations: state.conversations.filter(c => c.id !== conversationId),
@@ -556,7 +798,7 @@ export const useChatStore = create<ChatState>()(
       // Rename conversation
       renameConversation: async (conversationId: string, newTitle: string) => {
     try {
-      await invoke('rename_conversation', { 
+      await safeInvoke('rename_conversation', { 
         conversation_id: conversationId, 
         new_title: newTitle 
       });

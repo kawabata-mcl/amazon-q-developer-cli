@@ -51,8 +51,8 @@ export function CodeBlock({
         await import('prismjs/components/prism-sql')
         await import('prismjs/components/prism-css')
         await import('prismjs/components/prism-scss')
-        await import('prismjs/components/prism-html')
-        await import('prismjs/components/prism-xml')
+        await import('prismjs/components/prism-markup')
+        await import('prismjs/components/prism-markup-templating')
         await import('prismjs/components/prism-markdown')
 
         // Normalize language name

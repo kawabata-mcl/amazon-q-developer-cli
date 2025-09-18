@@ -1,5 +1,6 @@
+import { safeInvoke } from '@/lib/tauri-env';
 import { useEffect, useCallback, useState } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useSettings } from './use-settings';
 import { useChatStore } from '@/stores/chat-store';
@@ -89,7 +90,7 @@ export function useKeyboardShortcuts(actions: Partial<ShortcutActions>) {
       announceToScreenReader('Settings opened');
     },
     'quit': () => {
-      invoke('quit_app').catch(console.error);
+      safeInvoke('quit_app').catch(console.error);
     },
     'copy': () => {
       document.execCommand('copy');
@@ -137,15 +138,15 @@ export function useKeyboardShortcuts(actions: Partial<ShortcutActions>) {
       announceToScreenReader('Zoom reset to actual size');
     },
     'toggle-fullscreen': () => {
-      invoke('handle_menu_event', { menuId: 'toggle_fullscreen' }).catch(console.error);
+      safeInvoke('handle_menu_event', { menuId: 'toggle_fullscreen' }).catch(console.error);
       announceToScreenReader('Fullscreen toggled');
     },
     'minimize': () => {
-      invoke('minimize_window').catch(console.error);
+      safeInvoke('minimize_window').catch(console.error);
       announceToScreenReader('Window minimized');
     },
     'close-window': () => {
-      invoke('close_window').catch(console.error);
+      safeInvoke('close_window').catch(console.error);
     },
     'save': () => {
       window.dispatchEvent(new CustomEvent('save-conversation'));
@@ -349,7 +350,7 @@ export function useKeyboardShortcuts(actions: Partial<ShortcutActions>) {
     if (enableGlobalShortcuts) {
       // Register global shortcuts with backend
       for (const [action, shortcut] of Object.entries(shortcuts)) {
-        invoke('register_global_shortcut', { shortcut, action })
+        safeInvoke('register_global_shortcut', { shortcut, action })
           .catch(error => {
             console.warn(`Failed to register global shortcut ${shortcut}:`, error);
           });
@@ -358,7 +359,7 @@ export function useKeyboardShortcuts(actions: Partial<ShortcutActions>) {
       // Cleanup function to unregister shortcuts
       return () => {
         for (const shortcut of Object.values(shortcuts)) {
-          invoke('unregister_global_shortcut', { shortcut })
+          safeInvoke('unregister_global_shortcut', { shortcut })
             .catch(console.error);
         }
       };

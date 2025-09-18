@@ -10,7 +10,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FolderOpen, X } from 'lucide-react';
 import { useStableCallback, useDebouncedCallback } from '@/lib/optimization-utils';
-import { OptimizedComponent } from '@/components/optimized/memo-wrapper';
 
 interface ChatWindowProps {
   className?: string;
@@ -37,10 +36,25 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
 
   // Initialize with a new conversation if none exists
   useEffect(() => {
-    if (!currentConversation) {
-      startNewConversation().catch(console.error);
-    }
-  }, [currentConversation, startNewConversation]);
+    let mounted = true;
+    
+    const initializeConversation = async () => {
+      if (mounted && !currentConversation && !isLoading && !isStreaming && !hasMessages) {
+        try {
+          await startNewConversation();
+        } catch (error) {
+          console.error('Failed to initialize conversation:', error);
+        }
+      }
+    };
+    
+    // Only initialize once when component mounts
+    initializeConversation();
+    
+    return () => {
+      mounted = false;
+    };
+  }, [currentConversation, isLoading, isStreaming, hasMessages, startNewConversation]); // Add missing dependencies
 
   // Optimized message sending with debouncing to prevent rapid submissions
   const handleSendMessage = useDebouncedCallback(async (message: string) => {
@@ -49,7 +63,7 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
     } catch (error) {
       console.error('Failed to send message:', error);
     }
-  }, 100, [sendMessage]);
+  }, 100);
 
   // Stable callback handlers
   const handleRetryMessage = useStableCallback(async (messageId: string) => {
@@ -60,13 +74,7 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
     }
   }, [retryMessage]);
 
-  const handleNewChat = useStableCallback(async () => {
-    try {
-      await startNewConversation();
-    } catch (error) {
-      console.error('Failed to start new conversation:', error);
-    }
-  }, [startNewConversation]);
+  // removed unused handleNewChat
 
   const handleFileAdded = useStableCallback((fileName: string) => {
     console.log('File added to context:', fileName);
@@ -147,30 +155,20 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
 
         {/* Chat Messages Area */}
         <div className="flex-1 overflow-hidden">
-          <OptimizedComponent
-            shouldUpdate={(prev, next) => 
-              prev.hasMessages !== next.hasMessages ||
-              prev.messages !== next.messages ||
-              prev.isStreaming !== next.isStreaming
-            }
-            debugName="ChatMessagesArea"
-          >
-            {hasMessages ? (
-              <VirtualMessageList 
-                messages={messages}
-                isLoading={isStreaming}
-                onRetryMessage={handleRetryMessage}
-                enableDynamicHeight={true}
-                itemHeight={120}
-              />
-            ) : (
-              <WelcomeScreen 
-                onNewChat={handleNewChat}
-                onFileAdded={handleFileAdded}
-                onFileError={handleFileError}
-              />
-            )}
-          </OptimizedComponent>
+          {hasMessages ? (
+            <VirtualMessageList 
+              messages={messages}
+              isLoading={isStreaming}
+              onRetryMessage={handleRetryMessage}
+              enableDynamicHeight={true}
+              itemHeight={120}
+            />
+          ) : (
+            <WelcomeScreen 
+              onFileAdded={handleFileAdded}
+              onFileError={handleFileError}
+            />
+          )}
         </div>
 
         {/* Message Input Area */}
@@ -234,11 +232,9 @@ ChatWindowComponent.displayName = 'ChatWindow';
 export const ChatWindow = ChatWindowComponent;
 
 const WelcomeScreen = memo(function WelcomeScreen({ 
-  onNewChat, 
   onFileAdded, 
   onFileError 
 }: { 
-  onNewChat: () => void;
   onFileAdded: (fileName: string) => void;
   onFileError: (error: string) => void;
 }) {

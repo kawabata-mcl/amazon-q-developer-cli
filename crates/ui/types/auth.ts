@@ -12,7 +12,7 @@ export type AuthStatus =
   | { type: 'Error'; message: string };
 
 export interface AuthState {
-  status: AuthStatus;
+  status: AuthStatus | null;
   isLoading: boolean;
   error: string | null;
 }

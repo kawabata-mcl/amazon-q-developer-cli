@@ -12,7 +12,6 @@ jest.mock('@/hooks/use-chat', () => ({
 }))
 const useChatModule = jest.requireMock('@/hooks/use-chat') as { useChat: jest.Mock }
 // Import component after setting up mocks
-// eslint-disable-next-line import/no-commonjs
 const { ConversationStats } = require('../conversation-stats')
 
 const mockStats: StatsType = {

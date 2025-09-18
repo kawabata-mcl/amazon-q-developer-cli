@@ -38,14 +38,18 @@ export function AuthGuard({
     login,
     clearError,
     user,
+    status,
   } = useAuth();
 
   // Redirect to auth page if not authenticated and not loading
   useEffect(() => {
-    if (!isAuthenticating && !isAuthenticated && !hasError) {
+    // Only redirect if we're certain the user is not authenticated
+    // Don't redirect during initial loading or if there's an error
+    if (!isAuthenticating && !isAuthenticated && !hasError && status?.type === 'NotAuthenticated') {
+      console.log('AuthGuard: Redirecting to auth page - user not authenticated');
       router.push(redirectTo);
     }
-  }, [isAuthenticated, isAuthenticating, hasError, router, redirectTo]);
+  }, [isAuthenticated, isAuthenticating, hasError, status?.type, router, redirectTo]);
 
   // Show loading spinner while checking authentication
   if (isAuthenticating) {

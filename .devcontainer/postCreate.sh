@@ -49,6 +49,20 @@ if [ -f "crates/ui/package.json" ]; then
   popd >/dev/null || true
 fi
 
+echo "[postCreate] Amazon Q Developer CLI"
+if ! command -v q >/dev/null 2>&1; then
+  arch=$(dpkg --print-architecture 2>/dev/null || echo unknown)
+  if [ "$arch" = "amd64" ]; then
+    tmpdeb=$(mktemp /tmp/amazon-q.XXXXXX.deb)
+    curl -fsSL https://desktop-release.q.us-east-1.amazonaws.com/latest/amazon-q.deb -o "$tmpdeb" && \
+    sudo apt-get update && \
+    sudo apt-get install -y "$tmpdeb" || echo "Amazon Q CLI install failed, continuing..."
+    rm -f "$tmpdeb" 2>/dev/null || true
+  else
+    echo "Amazon Q CLI install skipped: unsupported architecture ($arch)"
+  fi
+fi
+
 echo "[postCreate] git lfs"
 if command -v git >/dev/null 2>&1; then
   git lfs install --system || true

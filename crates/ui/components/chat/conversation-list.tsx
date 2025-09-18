@@ -7,7 +7,6 @@ import { Button } from "@/components/ui"
 import { 
   MessageSquare, 
   Search, 
-  MoreHorizontal,
   Trash2,
   Edit2,
   Calendar,

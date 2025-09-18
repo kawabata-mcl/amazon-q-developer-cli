@@ -152,7 +152,7 @@ export function useVirtualScroll({
 export function useScrollManager() {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const [isNearBottom, setIsNearBottom] = useState(true);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout>();
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Throttled scroll handler for better performance
   const handleScroll = useCallback(

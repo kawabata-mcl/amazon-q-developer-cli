@@ -1,6 +1,7 @@
+import { safeInvoke } from '@/lib/tauri-env';
 import { useEffect, useState } from 'react';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from './use-settings';
 import { useMacOSIntegration, isDarkTheme, type SystemTheme } from './use-macos-integration';
 
@@ -49,7 +50,7 @@ export function useTheme() {
     applyTheme(theme);
     
     // Notify backend about theme change
-    invoke('apply_theme', { theme }).catch(console.error);
+    safeInvoke('apply_theme', { theme }).catch(console.error);
   }, [theme, getSystemTheme]);
 
   // Listen for theme change events from backend

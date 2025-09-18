@@ -7,7 +7,6 @@ import {
   Trash2, 
   Copy, 
   Download, 
-  Eye,
   FileText,
   CheckCircle
 } from 'lucide-react';
@@ -142,7 +141,7 @@ export function FileViewer({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onEdit}
+                onClick={() => onEdit(file.content)}
                 title="Edit file"
               >
                 <Edit3 className="w-4 h-4" />
@@ -160,7 +159,7 @@ export function FileViewer({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onRemove}
+                onClick={() => onRemove()}
                 className="text-red-500 hover:text-red-600"
                 title="Remove file"
               >

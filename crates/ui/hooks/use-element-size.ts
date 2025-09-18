@@ -11,10 +11,10 @@ export interface ElementSize {
  * Hook to measure element dimensions
  */
 export function useElementSize<T extends HTMLElement = HTMLDivElement>(): [
-  React.RefObject<T>,
+  React.RefObject<T | null>,
   ElementSize
 ] {
-  const ref = useRef<T>(null);
+  const ref = useRef<T | null>(null);
   const [size, setSize] = useState<ElementSize>({ width: 0, height: 0 });
 
   const updateSize = useCallback(() => {
@@ -51,8 +51,8 @@ export function useElementSize<T extends HTMLElement = HTMLDivElement>(): [
  */
 export function useHeightMeasurement<T extends HTMLElement = HTMLDivElement>(
   onHeightChange?: (height: number) => void
-): React.RefObject<T> {
-  const ref = useRef<T>(null);
+): React.RefObject<T | null> {
+  const ref = useRef<T | null>(null);
   const lastHeight = useRef<number>(0);
 
   useEffect(() => {

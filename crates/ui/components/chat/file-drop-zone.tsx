@@ -130,7 +130,7 @@ export function FileDropZone({
     }
 
     setIsProcessing(false);
-  }, [disabled, isProcessing, validateFile, readFileAsText, onFileAdded, onError]);
+  }, [disabled, isProcessing, validateFile, readFileAsText, onFileAdded, onError, addFileToContext]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();

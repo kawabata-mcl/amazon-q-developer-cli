@@ -49,7 +49,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
   }
 
   const getAuthIcon = () => {
-    if (isAuthenticating) {
+    if (isAuthenticating || !status) {
       return <AlertCircle className="h-4 w-4 animate-pulse text-yellow-600 dark:text-yellow-400" />
     }
 
@@ -78,7 +78,7 @@ const StatusBar: React.FC<StatusBarProps> = ({
   }
 
   const getAuthText = () => {
-    if (isAuthenticating) {
+    if (isAuthenticating || !status) {
       return 'Authenticating...'
     }
 

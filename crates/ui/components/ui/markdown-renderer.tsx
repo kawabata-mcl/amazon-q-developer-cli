@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import ReactMarkdown from 'react-markdown'
+import type { HTMLAttributes, ReactNode } from 'react'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './code-block'
 import { InlineCode } from './inline-code'
@@ -30,7 +31,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
         remarkPlugins={[remarkGfm]}
         components={{
           // Code blocks
-          code({ node, inline, className, children, ...props }) {
+          code({ inline, className, children, ...props }: HTMLAttributes<HTMLElement> & { inline?: boolean; children?: ReactNode }) {
             const match = /language-(\w+)/.exec(className || '')
             const language = match ? match[1] : undefined
             
@@ -71,6 +72,7 @@ export function MarkdownRenderer({ content, className }: MarkdownRendererProps) 
           // Images - handle with proper loading and error states
           img({ src, alt, ...props }) {
             return (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={src}
                 alt={alt || 'Image'}

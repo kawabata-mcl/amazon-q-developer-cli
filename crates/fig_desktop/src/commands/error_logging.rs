@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
-use tauri::api::path;
 use time::OffsetDateTime;
 use tracing::{error, info, warn};
 
@@ -29,9 +28,10 @@ pub struct ErrorLogEntry {
 
 /// Get the error log file path
 fn get_error_log_path() -> Result<PathBuf, String> {
-    let app_data_dir = path::app_data_dir(&tauri::Config::default())
-        .ok_or("Failed to get app data directory")?;
-    
+    let app_data_dir = dirs::data_dir()
+        .ok_or("Failed to get data directory")?
+        .join("amazon-q-desktop");
+
     let log_dir = app_data_dir.join("logs");
     
     // Create logs directory if it doesn't exist

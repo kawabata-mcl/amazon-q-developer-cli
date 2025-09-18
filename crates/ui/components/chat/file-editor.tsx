@@ -6,9 +6,7 @@ import {
   Save, 
   X, 
   AlertTriangle,
-  FileText,
-  Undo,
-  Redo
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +22,7 @@ interface FileEditorProps {
 }
 
 export function FileEditor({ file, onSave, onCancel, onClose }: FileEditorProps) {
-  const { updateFileContent, isLoading } = useFileContextStore();
+  const { updateFileContent } = useFileContextStore();
   const [content, setContent] = useState(file.content);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

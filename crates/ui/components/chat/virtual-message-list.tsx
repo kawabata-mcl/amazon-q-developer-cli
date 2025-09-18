@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useState, useMemo, memo } from 'react';
+import { useEffect, useRef, useState, memo } from 'react';
 import { VirtualMessageItem } from './virtual-message-item';
 import { Spinner } from '@/components/ui/spinner';
 import { useVirtualScroll, useScrollManager } from '@/hooks/use-virtual-scroll';
 import { useStableCallback, useMemoWithEquality, useThrottledCallback } from '@/lib/optimization-utils';
-import { withMemo, OptimizedComponent } from '@/components/optimized/memo-wrapper';
+
 import type { ChatMessage } from '@/types/chat';
 
 interface VirtualMessageListProps {
@@ -98,7 +98,7 @@ const VirtualMessageListComponent = memo(function VirtualMessageList({
     const target = event.currentTarget;
     setScrollOffset(target.scrollTop);
     handleScroll(event.nativeEvent);
-  }, 16, [handleScroll, setScrollOffset]); // 60fps throttling
+  }, 16); // 60fps throttling
 
   // Stable height change handler
   const handleHeightChange = useStableCallback((index: number, height: number) => {
@@ -120,7 +120,7 @@ const VirtualMessageListComponent = memo(function VirtualMessageList({
     return (
       <div 
         ref={containerRef}
-        className={`flex-1 overflow-y-auto ${className}`}
+        className={`h-full overflow-y-auto ${className}`}
         data-testid="virtual-message-list"
       >
         <div className="flex items-center justify-center h-full">
@@ -137,7 +137,7 @@ const VirtualMessageListComponent = memo(function VirtualMessageList({
   return (
     <div 
       ref={containerRef}
-      className={`flex-1 overflow-y-auto ${className}`}
+      className={`h-full overflow-y-auto ${className}`}
       onScroll={onScroll}
       data-testid="virtual-message-list"
       style={{

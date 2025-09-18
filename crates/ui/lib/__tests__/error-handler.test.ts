@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom'
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import { classifyError, ErrorType, createAppError, getUserFriendlyMessage, handleError } from '@/lib/error-handler'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 
 describe('error-handler', () => {
   beforeEach(() => {

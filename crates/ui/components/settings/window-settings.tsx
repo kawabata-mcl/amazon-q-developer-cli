@@ -41,7 +41,7 @@ export function WindowSettings() {
     await saveWindowState();
     // Refresh the current state display
     const currentState = await getCurrentWindowState();
-    if (currentState) {
+    if (currentState && typeof currentState.width === 'number' && typeof currentState.height === 'number') {
       setTempWidth(currentState.width.toString());
       setTempHeight(currentState.height.toString());
     }

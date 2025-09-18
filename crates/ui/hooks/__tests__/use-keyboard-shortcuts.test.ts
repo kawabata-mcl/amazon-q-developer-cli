@@ -3,7 +3,7 @@ import { renderHook, act } from '@testing-library/react';
 
 jest.useFakeTimers();
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { useKeyboardShortcuts } = require('../use-keyboard-shortcuts');

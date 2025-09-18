@@ -29,10 +29,8 @@ export function ConversationStats({ className }: ConversationStatsProps) {
         setIsLoading(true)
         setError(null)
         // Debug: ensure effect runs and promise resolves in tests
-        // eslint-disable-next-line no-console
         console.debug('[ConversationStats] fetching stats')
         const statsData = await getConversationStats()
-        // eslint-disable-next-line no-console
         console.debug('[ConversationStats] fetched stats', statsData)
         setStats(statsData as ConversationStats)
       } catch (err) {
@@ -44,9 +42,8 @@ export function ConversationStats({ className }: ConversationStatsProps) {
     }
 
     // Run only once on mount to avoid dependency identity quirks in tests
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     loadStats()
-  }, [])
+  }, [getConversationStats])
 
   if (isLoading) {
     return (

@@ -15,7 +15,7 @@ export function AuthStatusIndicator({
   const { status, isAuthenticating, user, errorMessage } = useAuth();
 
   const getStatusIcon = () => {
-    if (isAuthenticating) {
+    if (isAuthenticating || !status) {
       return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
     }
 
@@ -31,7 +31,7 @@ export function AuthStatusIndicator({
   };
 
   const getStatusText = () => {
-    if (isAuthenticating) {
+    if (isAuthenticating || !status) {
       return 'Authenticating...';
     }
 
@@ -47,7 +47,7 @@ export function AuthStatusIndicator({
   };
 
   const getStatusColor = () => {
-    if (isAuthenticating) {
+    if (isAuthenticating || !status) {
       return 'text-blue-600 dark:text-blue-400';
     }
 

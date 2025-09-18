@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, error};
 
 // Make available as library as well
 pub mod commands;
@@ -13,6 +13,7 @@ pub mod utils;
 use commands::*;
 use state::AppState;
 use utils::cli_bridge::CliBridge;
+use crate::commands::settings::apply_window_settings_at_startup;
 
 /// Main function for the Tauri application
 #[tokio::main]
@@ -45,9 +46,9 @@ async fn main() {
 
     // Build and run Tauri application
     tauri::Builder::default()
-        .manage(app_state)
-        .manage(cli_bridge)
-        .manage(settings_state)
+        .manage(app_state.clone())
+        .manage(cli_bridge.clone())
+        .manage(settings_state.clone())
         .invoke_handler(tauri::generate_handler![
             // Authentication commands
             auth::login,
@@ -97,14 +98,58 @@ async fn main() {
             macos_integration::is_high_contrast_enabled,
             macos_integration::get_accessibility_settings
         ])
-        .setup(|app| {
+        .setup(move |app| {
             info!("Tauri application setup completed");
             
-            // Setup window event listeners for auto-saving window state
+            // Apply window settings once at startup to avoid FE/BE race
+            {
+                let app_handle = app.handle().clone();
+                let settings_state_for_startup = settings_state.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = apply_window_settings_at_startup(settings_state_for_startup, app_handle).await {
+                        error!("Failed to apply window settings at startup: {}", e);
+                    }
+                });
+            }
+
+            // Perform initial authentication check
+            let app_state_clone = app_state.clone();
+            let cli_bridge_clone = cli_bridge.clone();
+            tokio::spawn(async move {
+                info!("Performing initial authentication check...");
+                
+                let bridge = cli_bridge_clone.lock().await;
+                match bridge.check_auth_status().await {
+                    Ok(Some(auth_info)) => {
+                        info!("Initial auth check: User is authenticated - {}", auth_info.username);
+                        let mut state = app_state_clone.lock().await;
+                        state.auth_status = state::AuthStatus::Authenticated {
+                            username: auth_info.username,
+                            provider: auth_info.provider,
+                        };
+                    },
+                    Ok(None) => {
+                        info!("Initial auth check: User is not authenticated");
+                        let mut state = app_state_clone.lock().await;
+                        state.auth_status = state::AuthStatus::NotAuthenticated;
+                    },
+                    Err(e) => {
+                        error!("Initial auth check failed: {}", e);
+                        let mut state = app_state_clone.lock().await;
+                        state.auth_status = state::AuthStatus::Error {
+                            message: format!("Initial auth check failed: {}", e),
+                        };
+                    }
+                }
+            });
+            
+            // Setup window event listeners for auto-saving window state (disabled to prevent resize loops)
+            // TODO: Re-enable with proper debouncing and loop prevention
+            /*
             let app_handle = app.handle();
             let settings_state_clone = settings_state.clone();
             
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 let app_handle_clone = app_handle.clone();
                 let settings_state_clone2 = settings_state_clone.clone();
                 
@@ -128,9 +173,10 @@ async fn main() {
                     }
                 });
             }
+            */
             
             Ok(())
         })
-        .run(tauri::generate_context!("src-tauri/tauri.conf.json"))
+        .run(tauri::generate_context!())
         .expect("Error occurred while running Tauri application");
 }

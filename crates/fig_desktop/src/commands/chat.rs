@@ -1,6 +1,6 @@
 /// Chat-related Tauri commands
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, State, Emitter};
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, broadcast};
 use tracing::{error, info, warn};
@@ -23,8 +23,12 @@ pub async fn send_message(
 
     // Get conversation ID or create new one
     let conv_id = match conversation_id {
-        Some(id) => id,
+        Some(id) => {
+            info!("send_message_stream: Using provided conversation_id={}", id);
+            id
+        },
         None => {
+            info!("send_message_stream: No conversation_id provided. Creating a new one");
             let mut app_state = state.lock().await;
             app_state.start_new_conversation()
         },
@@ -140,7 +144,17 @@ pub async fn send_message_stream(
                     is_complete: true,
                     error: Some(format!("Failed to initialize: {}", e)),
                 };
-                let _ = tauri::Manager::emit_all(&app_clone, "message_chunk", &error_chunk);
+                let event_name = format!("message_chunk_{}", error_chunk.conversation_id);
+                info!(
+                    "Emitting ERROR stream chunk: event={}, conv_id={}, chunk_id={}, content_len={}, is_complete={}, error={}",
+                    event_name,
+                    error_chunk.conversation_id,
+                    error_chunk.chunk_id,
+                    error_chunk.content.len(),
+                    error_chunk.is_complete,
+                    error_chunk.error.as_deref().unwrap_or("")
+                );
+                let _ = app_clone.emit_to("main", &event_name, &error_chunk);
                 return;
             },
         };
@@ -158,7 +172,17 @@ pub async fn send_message_stream(
                 is_complete: true,
                 error: Some(format!("Streaming failed: {}", e)),
             };
-            let _ = tauri::Manager::emit_all(&app_clone, "message_chunk", &error_chunk);
+            let event_name = format!("message_chunk_{}", error_chunk.conversation_id);
+            info!(
+                "Emitting ERROR stream chunk: event={}, conv_id={}, chunk_id={}, content_len={}, is_complete={}, error={}",
+                event_name,
+                error_chunk.conversation_id,
+                error_chunk.chunk_id,
+                error_chunk.content.len(),
+                error_chunk.is_complete,
+                error_chunk.error.as_deref().unwrap_or("")
+            );
+            let _ = app_clone.emit_to("main", &event_name, &error_chunk);
         }
     });
 
@@ -173,8 +197,19 @@ pub async fn send_message_stream(
 
         while let Ok(chunk) = stream_receiver.recv().await {
             // Emit chunk to frontend
-            if let Err(e) = tauri::Manager::emit_all(&app_for_listener, "message_chunk", &chunk) {
+            let event_name = format!("message_chunk_{}", chunk.conversation_id);
+            info!(
+                "Emitting stream chunk: event={}, conv_id={}, chunk_id={}, content_len={}, is_complete={}",
+                event_name,
+                chunk.conversation_id,
+                chunk.chunk_id,
+                chunk.content.len(),
+                chunk.is_complete
+            );
+            if let Err(e) = app_for_listener.emit_to("main", &event_name, &chunk) {
                 warn!("Failed to emit stream chunk: {}", e);
+            } else {
+                info!("Successfully emitted stream chunk: event={}, chunk_id={}", event_name, chunk.chunk_id);
             }
 
             // Accumulate content
@@ -182,6 +217,11 @@ pub async fn send_message_stream(
 
             // If this is the final chunk, add the complete assistant message
             if chunk.is_complete {
+                info!(
+                    "Final chunk received: conv_id={}, accumulated_content_len={}",
+                    conv_id_for_listener,
+                    accumulated_content.len()
+                );
                 let mut app_state = state_for_listener.lock().await;
                 let assistant_message = GuiMessage {
                     id: assistant_message_id,

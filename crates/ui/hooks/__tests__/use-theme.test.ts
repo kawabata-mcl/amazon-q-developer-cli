@@ -4,7 +4,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 // jsdom doesn't implement classList.toggle with second argument in older envs consistently
 // but our jest-environment-jsdom supports it; ensure documentElement exists
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { useTheme } = require('../use-theme');

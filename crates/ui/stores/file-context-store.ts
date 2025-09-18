@@ -1,5 +1,6 @@
+import { safeInvoke } from '@/lib/tauri-env';
 import { create } from 'zustand';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 import type { FileContextItem, FileContextError } from '@/types/file-context';
 
 interface FileContextState {
@@ -68,7 +69,7 @@ export const useFileContextStore = create<FileContextState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('add_file_context', {
+      await safeInvoke('add_file_context', {
         file_name: fileName,
         content,
       });
@@ -107,7 +108,7 @@ export const useFileContextStore = create<FileContextState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('add_file_to_context_by_path', {
+      await safeInvoke('add_file_to_context_by_path', {
         file_path: filePath,
       });
       
@@ -132,7 +133,7 @@ export const useFileContextStore = create<FileContextState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('remove_file_from_context', {
+      await safeInvoke('remove_file_from_context', {
         file_path: filePath,
       });
       
@@ -161,12 +162,12 @@ export const useFileContextStore = create<FileContextState>((set, get) => ({
       set({ isLoading: true, error: null });
       
       // Remove old version and add updated version
-      await invoke('remove_file_from_context', {
+      await safeInvoke('remove_file_from_context', {
         file_path: filePath,
       });
       
       const fileName = filePath.split('/').pop() || filePath;
-      await invoke('add_file_context', {
+      await safeInvoke('add_file_context', {
         file_name: fileName,
         content,
       });
@@ -204,7 +205,7 @@ export const useFileContextStore = create<FileContextState>((set, get) => ({
     try {
       set({ isLoading: true, error: null });
       
-      await invoke('clear_context');
+      await safeInvoke('clear_context');
       
       set({
         contextFiles: [],

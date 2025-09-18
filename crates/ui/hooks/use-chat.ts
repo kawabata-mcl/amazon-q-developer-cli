@@ -143,7 +143,7 @@ export function useChat() {
       console.error('Failed to search conversations:', error);
       throw error;
     }
-  }, 300, [searchConversations]);
+  }, 300);
 
   const handleGetStats = useStableCallback(async () => {
     try {

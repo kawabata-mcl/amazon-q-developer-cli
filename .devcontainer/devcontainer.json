@@ -55,5 +55,3 @@
   },
   "initializeCommand": "docker volume create amazon-q-developer-cli-cargo-registry 2>/dev/null || true && docker volume create amazon-q-developer-cli-cargo-git 2>/dev/null || true"
 }
-
-

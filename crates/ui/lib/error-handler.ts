@@ -2,7 +2,7 @@
  * Global error handling system for the desktop application
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+import { isTauriRuntime, safeInvoke } from '@/lib/tauri-env';
 
 // Error types and interfaces
 export interface AppError {
@@ -260,7 +260,12 @@ export function getErrorSeverity(error: AppError): ErrorSeverity {
 // Log error to backend
 export async function logError(error: AppError): Promise<void> {
   try {
-    await invoke('log_error', {
+    if (!isTauriRuntime()) {
+      // Web/SSR環境ではバックエンドへ送らない（コンソールに残すのみ）
+      console.error('Original error:', error);
+      return;
+    }
+    await safeInvoke('log_error', {
       error: {
         id: error.id,
         type: error.type,
@@ -294,6 +299,10 @@ export class GlobalErrorHandler {
   }
   
   private setupGlobalHandlers(): void {
+    if (typeof window === 'undefined') {
+      // Running in SSR/Node environment; skip attaching browser event handlers
+      return;
+    }
     // Handle unhandled promise rejections
     window.addEventListener('unhandledrejection', (event) => {
       const error = createAppError(event.reason, { source: 'unhandledrejection' });

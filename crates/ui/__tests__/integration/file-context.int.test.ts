@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import { describe, test, expect, beforeEach, jest } from '@jest/globals';
 import { useFileContextStore } from '@/stores/file-context-store';
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 const mockInvoke = invoke as unknown as jest.MockedFunction<typeof invoke>;
 

@@ -5,9 +5,7 @@ import {
   FileText, 
   X, 
   Edit3, 
-  Save, 
   Trash2, 
-  Plus, 
   FolderOpen,
   AlertCircle,
   Eye,
@@ -29,7 +27,6 @@ import type { FileContextItem, FileContextManagerProps } from '@/types/file-cont
 export function FileContextManager({ 
   className,
   maxHeight = '400px',
-  showAddButton = true,
   allowEditing = true,
   disableInitialLoad = false,
 }: FileContextManagerProps & { disableInitialLoad?: boolean }) {
@@ -46,7 +43,7 @@ export function FileContextManager({
   } = useFileContextStore()
 
   const { revealInFinder, openWithDefaultApp } = useMacOSIntegration()
-  const { contextMenu, showContextMenu, hideContextMenu, getFileContextMenuItems } = useFileContextMenu()
+  const { contextMenu, showContextMenu, hideContextMenu } = useFileContextMenu()
 
   // Ensure contextFiles is always an array to prevent runtime errors
   const safeContextFiles = Array.isArray(contextFiles) ? contextFiles : []

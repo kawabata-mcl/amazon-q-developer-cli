@@ -9,7 +9,6 @@ jest.mock('@/hooks/use-auth', () => ({
 }));
 
 const useAuthModule = jest.requireMock('@/hooks/use-auth') as { useAuth: jest.Mock };
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { AuthGuard } = require('../auth-guard');
 
 describe('AuthGuard', () => {

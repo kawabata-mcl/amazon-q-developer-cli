@@ -1,0 +1,25 @@
+# Ignore heavy rebuild triggers during Tauri dev
+
+# Rust build outputs
+target/
+../**/target/
+../../target/
+
+# macOS debug symbol bundles
+**/*.dSYM/**
+
+# Next.js dev/build outputs
+../ui/.next/**
+../ui/out/**
+
+# Node modules
+../ui/node_modules/**
+
+# Specific files that caused rebuild loops
+../chat-cli/src/Info.plist
+
+# Broader ignores to prevent repeated rebuilds
+../chat-cli/**
+**/*.plist
+
+

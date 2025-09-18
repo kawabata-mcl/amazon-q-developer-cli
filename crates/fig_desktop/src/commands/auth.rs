@@ -114,21 +114,48 @@ pub async fn logout(state: State<'_, Arc<Mutex<AppState>>>) -> Result<(), String
 /// Get authentication status command
 #[tauri::command]
 pub async fn get_auth_status(state: State<'_, Arc<Mutex<AppState>>>) -> Result<AuthStatus, String> {
-    info!("Getting authentication status");
+    info!("=== TAURI COMMAND: get_auth_status called ===");
+
+    // First, check if we already have auth status in app state
+    {
+        let app_state = state.lock().await;
+        match &app_state.auth_status {
+            AuthStatus::Authenticated { username, provider } => {
+                info!("Returning cached auth status: {} ({})", username, provider);
+                return Ok(app_state.auth_status.clone());
+            },
+            AuthStatus::NotAuthenticated => {
+                info!("Cached status shows not authenticated, will re-check");
+            },
+            AuthStatus::Authenticating => {
+                info!("Currently authenticating, will re-check");
+            },
+            AuthStatus::Error { message } => {
+                info!("Cached status shows error: {}, will re-check", message);
+            }
+        }
+    }
 
     // Create CLI bridge instance to check actual auth status
     let cli_bridge = match CliBridge::new().await {
-        Ok(bridge) => bridge,
+        Ok(bridge) => {
+            info!("CLI bridge initialized successfully for auth check");
+            bridge
+        },
         Err(e) => {
             let error_msg = format!("Failed to initialize CLI bridge: {}", e);
-            error!("{}", error_msg);
+            error!("CLI bridge initialization failed: {}", error_msg);
             return Ok(AuthStatus::Error { message: error_msg });
         },
     };
 
     // Check actual authentication status from CLI
+    info!("Checking authentication status via CLI bridge...");
     match cli_bridge.check_auth_status().await {
         Ok(Some(auth_info)) => {
+            info!("Authentication successful - Username: {}, Provider: {}", 
+                  auth_info.username, auth_info.provider);
+            
             let auth_status = AuthStatus::Authenticated {
                 username: auth_info.username,
                 provider: auth_info.provider,
@@ -138,24 +165,29 @@ pub async fn get_auth_status(state: State<'_, Arc<Mutex<AppState>>>) -> Result<A
             {
                 let mut app_state = state.lock().await;
                 app_state.auth_status = auth_status.clone();
+                info!("Updated app state with authenticated status");
             }
 
+            info!("=== TAURI COMMAND: get_auth_status returning AUTHENTICATED ===");
             Ok(auth_status)
         },
         Ok(None) => {
+            info!("Authentication check result: NOT AUTHENTICATED");
             let auth_status = AuthStatus::NotAuthenticated;
 
             // Update app state
             {
                 let mut app_state = state.lock().await;
                 app_state.auth_status = auth_status.clone();
+                info!("Updated app state with not authenticated status");
             }
 
+            info!("=== TAURI COMMAND: get_auth_status returning NOT AUTHENTICATED ===");
             Ok(auth_status)
         },
         Err(e) => {
             let error_msg = format!("Failed to check authentication status: {}", e);
-            error!("{}", error_msg);
+            error!("Authentication check error: {}", error_msg);
 
             let auth_status = AuthStatus::Error { message: error_msg };
 
@@ -163,8 +195,10 @@ pub async fn get_auth_status(state: State<'_, Arc<Mutex<AppState>>>) -> Result<A
             {
                 let mut app_state = state.lock().await;
                 app_state.auth_status = auth_status.clone();
+                info!("Updated app state with error status");
             }
 
+            info!("=== TAURI COMMAND: get_auth_status returning ERROR ===");
             Ok(auth_status)
         },
     }

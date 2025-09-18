@@ -43,7 +43,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
   };
 
   return (
-    <Card className={`p-6 ${className || ''}`}>
+    <Card className={`p-6 ${className || ''}`} data-testid="auth-panel">
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center space-x-2">
@@ -56,14 +56,14 @@ export function AuthPanel({ className }: AuthPanelProps) {
         {/* Authentication Status */}
         <div className="space-y-3">
           {isAuthenticating && (
-            <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400">
+            <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400" data-testid="auth-loading">
               <Spinner className="h-4 w-4" />
               <span className="text-sm">Authenticating...</span>
             </div>
           )}
 
           {isAuthenticated && user && (
-            <div className="space-y-2">
+            <div className="space-y-2" data-testid="auth-success">
               <div className="flex items-center space-x-2 text-green-600 dark:text-green-400">
                 <CheckCircle className="h-4 w-4" />
                 <span className="text-sm font-medium">Authenticated</span>
@@ -78,14 +78,14 @@ export function AuthPanel({ className }: AuthPanelProps) {
           )}
 
           {!isAuthenticated && !isAuthenticating && (
-            <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
+            <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400" data-testid="auth-status">
               <AlertCircle className="h-4 w-4" />
               <span className="text-sm">Not authenticated</span>
             </div>
           )}
 
           {hasError && errorMessage && (
-            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md p-3">
+            <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md p-3" data-testid="auth-error">
               <div className="flex items-start space-x-2">
                 <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
                 <div className="text-sm text-red-800 dark:text-red-200">
@@ -104,6 +104,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
               onClick={handleLogin}
               disabled={isAuthenticating}
               className="flex items-center space-x-2"
+            data-testid="login-button"
             >
               {isAuthenticating ? (
                 <Spinner className="h-4 w-4" />
@@ -118,6 +119,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
               disabled={isAuthenticating}
               variant="outline"
               className="flex items-center space-x-2"
+            data-testid="logout-button"
             >
               {isAuthenticating ? (
                 <Spinner className="h-4 w-4" />

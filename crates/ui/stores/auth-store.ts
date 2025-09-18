@@ -15,8 +15,8 @@ interface AuthStore extends AuthState {
 export const useAuthStore = create<AuthStore>()(
   devtools(
     (set) => ({
-      // Initial state
-      status: { type: 'NotAuthenticated' },
+      // Initial state - start with loading to prevent premature redirects
+      status: null,
       isLoading: false,
       error: null,
 
@@ -61,22 +61,32 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       checkAuthStatus: async () => {
+        console.log('=== Starting auth status check ===');
         set({ isLoading: true, error: null });
         
         try {
+          console.log('Calling getAuthStatusCommand...');
           const status = await getAuthStatusCommand();
+          console.log('Auth status received:', status);
+          
           set({ 
             status,
             isLoading: false,
             error: null 
           });
+          
+          console.log('=== Auth status check completed successfully ===');
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to check auth status';
+          console.error('Auth status check failed:', errorMessage);
+          
           set({ 
             status: { type: 'NotAuthenticated' },
             isLoading: false,
             error: errorMessage
           });
+          
+          console.log('=== Auth status check completed with error ===');
         }
       },
 

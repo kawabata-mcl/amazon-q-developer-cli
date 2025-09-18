@@ -16,12 +16,24 @@ export function useAuth() {
 
   // Check authentication status on mount
   useEffect(() => {
-    checkAuthStatus();
-  }, [checkAuthStatus]);
+    let mounted = true;
+    
+    const performAuthCheck = async () => {
+      if (mounted && status === null) {
+        await checkAuthStatus();
+      }
+    };
+    
+    performAuthCheck();
+    
+    return () => {
+      mounted = false;
+    };
+  }, []); // Remove checkAuthStatus from dependencies to prevent infinite loop
 
   // Helper functions
   const isAuthenticated = status?.type === 'Authenticated';
-  const isAuthenticating = status?.type === 'Authenticating' || isLoading;
+  const isAuthenticating = status?.type === 'Authenticating' || isLoading || status === null;
   const hasError = status?.type === 'Error' || error !== null;
   
   const getUser = () => {

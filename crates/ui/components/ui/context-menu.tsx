@@ -6,11 +6,7 @@ import { useMacOSIntegration } from '@/hooks/use-macos-integration'
 import { 
   FolderOpen, 
   ExternalLink, 
-  Copy, 
-  Edit, 
-  Trash2, 
-  FileText,
-  Download
+  Copy
 } from 'lucide-react'
 
 interface ContextMenuProps {

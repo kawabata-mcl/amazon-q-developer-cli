@@ -59,14 +59,37 @@ pub struct ConversationSummary {
 impl CliBridge {
     /// Create a new CLI bridge instance
     pub async fn new() -> Result<Self, CliBridgeError> {
+        info!("Initializing CLI bridge...");
+        
         let os = Os::new()
             .await
             .map_err(|e| CliBridgeError::InternalError(format!("Failed to initialize OS: {}", e)))?;
+
+        info!("OS initialized successfully");
+
+        // Log database path for debugging
+        match chat_cli::util::directories::database_path() {
+            Ok(db_path) => {
+                info!("Database path: {}", db_path.display());
+                
+                // Check if database file exists
+                if db_path.exists() {
+                    info!("Database file exists");
+                } else {
+                    warn!("Database file does not exist at: {}", db_path.display());
+                }
+            },
+            Err(e) => {
+                error!("Failed to get database path: {}", e);
+            }
+        }
 
         // Build a minimal Agent so we can construct ContextManager safely
         let agent = Agent::default();
         let context_manager = ContextManager::from_agent(&agent, 10 * 1024 * 1024)
             .map_err(|e| CliBridgeError::InternalError(format!("Failed to initialize ContextManager: {}", e)))?;
+
+        info!("CLI bridge initialized successfully");
 
         Ok(Self {
             os: Arc::new(Mutex::new(os)),
@@ -289,13 +312,34 @@ impl CliBridge {
 
     /// Check authentication status
     pub async fn check_auth_status(&self) -> Result<Option<AuthInfo>, Box<dyn std::error::Error + Send + Sync>> {
-        info!("Checking authentication status via CLI bridge");
+        info!("=== CLI Bridge: Checking authentication status ===");
 
         let mut os = self.os.lock().await;
 
-        if is_logged_in(&mut os.database).await {
-            self.get_current_auth_info(&mut os).await.map(Some)
+        // Log database connection info
+        info!("Database connection established");
+
+        let logged_in = is_logged_in(&mut os.database).await;
+        info!("is_logged_in() result: {}", logged_in);
+
+        if logged_in {
+            info!("User appears to be logged in, retrieving auth info...");
+            match self.get_current_auth_info(&mut os).await {
+                Ok(auth_info) => {
+                    info!("Successfully retrieved auth info: username={}, provider={}", 
+                          auth_info.username, auth_info.provider);
+                    info!("=== CLI Bridge: Authentication check SUCCESSFUL ===");
+                    Ok(Some(auth_info))
+                },
+                Err(e) => {
+                    error!("Failed to get auth info despite being logged in: {}", e);
+                    info!("=== CLI Bridge: Authentication check FAILED (auth info error) ===");
+                    Err(e)
+                }
+            }
         } else {
+            info!("User is not logged in according to is_logged_in()");
+            info!("=== CLI Bridge: Authentication check COMPLETED (not logged in) ===");
             Ok(None)
         }
     }

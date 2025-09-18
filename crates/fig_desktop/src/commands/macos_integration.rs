@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use tauri::{command, AppHandle, Manager, Runtime};
+use tauri::{command, AppHandle, Runtime, Emitter, Manager};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum SystemTheme {
@@ -20,7 +20,7 @@ pub struct MacOSSystemInfo {
 pub async fn get_system_theme() -> Result<SystemTheme, String> {
     #[cfg(target_os = "macos")]
     {
-        use cocoa::appkit::{NSApp, NSAppearance, NSAppearanceNameAqua, NSAppearanceNameDarkAqua};
+        use cocoa::appkit::NSApp;
         use cocoa::base::nil;
         use objc::{msg_send, sel, sel_impl};
 
@@ -130,101 +130,121 @@ pub async fn open_with_default_app(path: String) -> Result<(), String> {
 /// Set up native menu bar for macOS
 #[command]
 pub async fn setup_native_menu<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    // 内部ロジックを呼び出し、エラーが発生した場合のみ文字列に変換
+    setup_native_menu_inner(app).map_err(|e| {
+        // anyhow::Errorはエラーチェーンを保持しているため、詳細な情報が得られる
+        eprintln!("Error setting up native menu: {:?}", e); // サーバーサイドで詳細ログを出力
+        e.to_string() // フロントエンドには簡潔なメッセージを返す
+    })
+}
+
+/// 内部ロジック：anyhowでエラーを統一的に扱う
+fn setup_native_menu_inner<R: Runtime>(app: AppHandle<R>) -> anyhow::Result<()> {
     #[cfg(target_os = "macos")]
     {
-        use tauri::{Menu, MenuItem, Submenu, CustomMenuItem, AboutMetadata};
-        
-        // Create About menu item
-        let about_menu = Submenu::new(
-            "Amazon Q Desktop",
-            Menu::new()
-                .add_native_item(MenuItem::About("Amazon Q Desktop".to_string(), AboutMetadata::default()))
-                .add_native_item(MenuItem::Separator)
-                .add_item(CustomMenuItem::new("preferences", "Preferences...").accelerator("Cmd+,"))
-                .add_native_item(MenuItem::Separator)
-                .add_native_item(MenuItem::Services)
-                .add_native_item(MenuItem::Separator)
-                .add_native_item(MenuItem::Hide)
-                .add_native_item(MenuItem::HideOthers)
-                .add_native_item(MenuItem::ShowAll)
-                .add_native_item(MenuItem::Separator)
-                .add_native_item(MenuItem::Quit),
-        );
-        
-        // Create File menu
-        let file_menu = Submenu::new(
-            "File",
-            Menu::new()
-                .add_item(CustomMenuItem::new("new_conversation", "New Conversation").accelerator("Cmd+N"))
-                .add_native_item(MenuItem::Separator)
-                .add_item(CustomMenuItem::new("open_file", "Open File...").accelerator("Cmd+O"))
-                .add_item(CustomMenuItem::new("save_conversation", "Save Conversation").accelerator("Cmd+S"))
-                .add_native_item(MenuItem::Separator)
-                .add_native_item(MenuItem::CloseWindow),
-        );
-        
-        // Create Edit menu
-        let edit_menu = Submenu::new(
-            "Edit",
-            Menu::new()
-                .add_native_item(MenuItem::Undo)
-                .add_native_item(MenuItem::Redo)
-                .add_native_item(MenuItem::Separator)
-                .add_native_item(MenuItem::Cut)
-                .add_native_item(MenuItem::Copy)
-                .add_native_item(MenuItem::Paste)
-                .add_native_item(MenuItem::SelectAll),
-        );
-        
-        // Create View menu
-        let view_menu = Submenu::new(
-            "View",
-            Menu::new()
-                .add_item(CustomMenuItem::new("toggle_sidebar", "Toggle Sidebar").accelerator("Cmd+Shift+S"))
-                .add_item(CustomMenuItem::new("toggle_fullscreen", "Enter Full Screen").accelerator("Ctrl+Cmd+F"))
-                .add_native_item(MenuItem::Separator)
-                .add_item(CustomMenuItem::new("zoom_in", "Zoom In").accelerator("Cmd+Plus"))
-                .add_item(CustomMenuItem::new("zoom_out", "Zoom Out").accelerator("Cmd+Minus"))
-                .add_item(CustomMenuItem::new("actual_size", "Actual Size").accelerator("Cmd+0")),
-        );
-        
-        // Create Window menu
-        let window_menu = Submenu::new(
-            "Window",
-            Menu::new()
-                .add_native_item(MenuItem::Minimize)
-                .add_native_item(MenuItem::Zoom),
-        );
-        
-        // Create Help menu
-        let help_menu = Submenu::new(
-            "Help",
-            Menu::new()
-                .add_item(CustomMenuItem::new("documentation", "Documentation"))
-                .add_item(CustomMenuItem::new("keyboard_shortcuts", "Keyboard Shortcuts"))
-                .add_native_item(MenuItem::Separator)
-                .add_item(CustomMenuItem::new("report_issue", "Report Issue")),
-        );
-        
-        // Build the complete menu
-        let menu = Menu::new()
-            .add_submenu(about_menu)
-            .add_submenu(file_menu)
-            .add_submenu(edit_menu)
-            .add_submenu(view_menu)
-            .add_submenu(window_menu)
-            .add_submenu(help_menu);
-        
-        app.set_menu(menu)
-            .map_err(|e| format!("Failed to set native menu: {}", e))?;
-        
-        Ok(())
+        use tauri::menu::{AboutMetadata, Menu, MenuItem, PredefinedMenuItem, Submenu};
+
+        // Root menu for the app
+        let root_menu = Menu::new(&app)?; // `?`がtauri::Errorをanyhow::Errorに自動変換
+
+        // "Amazon Q Desktop" (App) submenu
+        let app_menu = Submenu::new(&app, "Amazon Q Desktop", true)?;
+        let about = PredefinedMenuItem::about(&app, Some("Amazon Q Desktop"), Some(AboutMetadata::default()))?;
+        let sep1 = PredefinedMenuItem::separator(&app)?;
+        let preferences = MenuItem::with_id(&app, "preferences", "Preferences...", true, None::<String>)?;
+        let sep2 = PredefinedMenuItem::separator(&app)?;
+        let services = PredefinedMenuItem::services(&app, None)?;
+        let sep3 = PredefinedMenuItem::separator(&app)?;
+        let hide = PredefinedMenuItem::hide(&app, None)?;
+        let hide_others = PredefinedMenuItem::hide_others(&app, None)?;
+        let show_all = PredefinedMenuItem::show_all(&app, None)?;
+        let sep4 = PredefinedMenuItem::separator(&app)?;
+        let quit = PredefinedMenuItem::quit(&app, None)?;
+        app_menu.append(&about)?;
+        app_menu.append(&sep1)?;
+        app_menu.append(&preferences)?;
+        app_menu.append(&sep2)?;
+        app_menu.append(&services)?;
+        app_menu.append(&sep3)?;
+        app_menu.append(&hide)?;
+        app_menu.append(&hide_others)?;
+        app_menu.append(&show_all)?;
+        app_menu.append(&sep4)?;
+        app_menu.append(&quit)?;
+        root_menu.append(&app_menu)?;
+
+        // File submenu
+        let file_menu = Submenu::new(&app, "File", true)?;
+        let new_conversation = MenuItem::with_id(&app, "new_conversation", "New Conversation", true, Some("Cmd+N".to_string()))?;
+        let sep_file_1 = PredefinedMenuItem::separator(&app)?;
+        let open_file = MenuItem::with_id(&app, "open_file", "Open File...", true, Some("Cmd+O".to_string()))?;
+        let save = MenuItem::with_id(&app, "save_conversation", "Save Conversation", true, Some("Cmd+S".to_string()))?;
+        let sep_file_2 = PredefinedMenuItem::separator(&app)?;
+        let close_window = PredefinedMenuItem::close_window(&app, None)?;
+        file_menu.append(&new_conversation)?;
+        file_menu.append(&sep_file_1)?;
+        file_menu.append(&open_file)?;
+        file_menu.append(&save)?;
+        file_menu.append(&sep_file_2)?;
+        file_menu.append(&close_window)?;
+        root_menu.append(&file_menu)?;
+
+        // Edit submenu
+        let edit_menu = Submenu::new(&app, "Edit", true)?;
+        let undo = PredefinedMenuItem::undo(&app, None)?;
+        let redo = PredefinedMenuItem::redo(&app, None)?;
+        let sep_edit = PredefinedMenuItem::separator(&app)?;
+        let cut = PredefinedMenuItem::cut(&app, None)?;
+        let copy = PredefinedMenuItem::copy(&app, None)?;
+        let paste = PredefinedMenuItem::paste(&app, None)?;
+        let select_all = PredefinedMenuItem::select_all(&app, None)?;
+        edit_menu.append(&undo)?;
+        edit_menu.append(&redo)?;
+        edit_menu.append(&sep_edit)?;
+        edit_menu.append(&cut)?;
+        edit_menu.append(&copy)?;
+        edit_menu.append(&paste)?;
+        edit_menu.append(&select_all)?;
+        root_menu.append(&edit_menu)?;
+
+        // View submenu
+        let view_menu = Submenu::new(&app, "View", true)?;
+        let toggle_sidebar = MenuItem::with_id(&app, "toggle_sidebar", "Toggle Sidebar", true, Some("Cmd+Shift+S".to_string()))?;
+        let toggle_fullscreen = MenuItem::with_id(&app, "toggle_fullscreen", "Enter Full Screen", true, Some("Ctrl+Cmd+F".to_string()))?;
+        let sep_view = PredefinedMenuItem::separator(&app)?;
+        let zoom_in = MenuItem::with_id(&app, "zoom_in", "Zoom In", true, Some("Cmd+Plus".to_string()))?;
+        let zoom_out = MenuItem::with_id(&app, "zoom_out", "Zoom Out", true, Some("Cmd+Minus".to_string()))?;
+        let actual_size = MenuItem::with_id(&app, "actual_size", "Actual Size", true, Some("Cmd+0".to_string()))?;
+        view_menu.append(&toggle_sidebar)?;
+        view_menu.append(&toggle_fullscreen)?;
+        view_menu.append(&sep_view)?;
+        view_menu.append(&zoom_in)?;
+        view_menu.append(&zoom_out)?;
+        view_menu.append(&actual_size)?;
+        root_menu.append(&view_menu)?;
+
+        // Window submenu
+        let window_menu = Submenu::new(&app, "Window", true)?;
+        let minimize = PredefinedMenuItem::minimize(&app, None)?;
+        window_menu.append(&minimize)?;
+        root_menu.append(&window_menu)?;
+
+        // Help submenu
+        let help_menu = Submenu::new(&app, "Help", true)?;
+        let documentation = MenuItem::with_id(&app, "documentation", "Documentation", true, None::<String>)?;
+        let keyboard_shortcuts = MenuItem::with_id(&app, "keyboard_shortcuts", "Keyboard Shortcuts", true, None::<String>)?;
+        let sep_help = PredefinedMenuItem::separator(&app)?;
+        let report_issue = MenuItem::with_id(&app, "report_issue", "Report Issue", true, None::<String>)?;
+        help_menu.append(&documentation)?;
+        help_menu.append(&keyboard_shortcuts)?;
+        help_menu.append(&sep_help)?;
+        help_menu.append(&report_issue)?;
+        root_menu.append(&help_menu)?;
+
+        app.set_menu(root_menu)?;
     }
     
-    #[cfg(not(target_os = "macos"))]
-    {
-        Ok(())
-    }
+    Ok(())
 }
 
 /// Check if VoiceOver is enabled
@@ -300,27 +320,27 @@ pub async fn handle_menu_event<R: Runtime>(
     match menu_id.as_str() {
         "preferences" => {
             // Emit event to frontend to show preferences
-            app.emit_all("show_preferences", {})
+            app.emit("show_preferences", {})
                 .map_err(|e| format!("Failed to emit preferences event: {}", e))?;
         }
         "new_conversation" => {
-            app.emit_all("new_conversation", {})
+            app.emit("new_conversation", {})
                 .map_err(|e| format!("Failed to emit new conversation event: {}", e))?;
         }
         "open_file" => {
-            app.emit_all("open_file_dialog", {})
+            app.emit("open_file_dialog", {})
                 .map_err(|e| format!("Failed to emit open file event: {}", e))?;
         }
         "save_conversation" => {
-            app.emit_all("save_conversation", {})
+            app.emit("save_conversation", {})
                 .map_err(|e| format!("Failed to emit save conversation event: {}", e))?;
         }
         "toggle_sidebar" => {
-            app.emit_all("toggle_sidebar", {})
+            app.emit("toggle_sidebar", {})
                 .map_err(|e| format!("Failed to emit toggle sidebar event: {}", e))?;
         }
         "toggle_fullscreen" => {
-            if let Some(window) = app.get_window("main") {
+            if let Some(window) = app.get_webview_window("main") {
                 let is_fullscreen = window.is_fullscreen()
                     .map_err(|e| format!("Failed to check fullscreen status: {}", e))?;
                 
@@ -329,22 +349,22 @@ pub async fn handle_menu_event<R: Runtime>(
             }
         }
         "zoom_in" => {
-            app.emit_all("zoom_in", {})
+            app.emit("zoom_in", {})
                 .map_err(|e| format!("Failed to emit zoom in event: {}", e))?;
         }
         "zoom_out" => {
-            app.emit_all("zoom_out", {})
+            app.emit("zoom_out", {})
                 .map_err(|e| format!("Failed to emit zoom out event: {}", e))?;
         }
         "actual_size" => {
-            app.emit_all("actual_size", {})
+            app.emit("actual_size", {})
                 .map_err(|e| format!("Failed to emit actual size event: {}", e))?;
         }
         "documentation" => {
             let _ = open_with_default_app("https://docs.aws.amazon.com/amazonq/".to_string()).await;
         }
         "keyboard_shortcuts" => {
-            app.emit_all("show_keyboard_shortcuts", {})
+            app.emit("show_keyboard_shortcuts", {})
                 .map_err(|e| format!("Failed to emit keyboard shortcuts event: {}", e))?;
         }
         "report_issue" => {

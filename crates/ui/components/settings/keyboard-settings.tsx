@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { useSettings } from '@/hooks/use-settings';
 import { useKeyboardShortcuts, MACOS_STANDARD_SHORTCUTS, ACCESSIBILITY_SHORTCUTS } from '@/hooks/use-keyboard-shortcuts';
 import { useState } from 'react';
-import { Keyboard, RotateCcw, Eye, Volume2, ZoomIn, Accessibility } from 'lucide-react';
+import { Keyboard, RotateCcw, Volume2, Accessibility } from 'lucide-react';
 
 const SHORTCUT_DESCRIPTIONS = {
   // File operations
@@ -59,10 +59,8 @@ const SHORTCUT_CATEGORIES = {
 export function KeyboardSettings() {
   const { settings, updateSetting } = useSettings();
   const { 
-    shortcuts: registeredShortcuts, 
     resetToDefaults,
-    isVoiceOverEnabled,
-    enableAccessibilityShortcuts 
+    isVoiceOverEnabled
   } = useKeyboardShortcuts({});
   const { keyboard } = settings;
   

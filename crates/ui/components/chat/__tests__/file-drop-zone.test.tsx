@@ -20,7 +20,8 @@ jest.mock('lucide-react', () => ({
 
 import { FileDropZone } from '../file-drop-zone';
 import { addFileContextCommand } from '@/lib/tauri';
-const mockAddFileContextCommand = addFileContextCommand as unknown as jest.MockedFunction<typeof addFileContextCommand>;
+// Mock the command
+jest.mocked(addFileContextCommand);
 
 describe('FileDropZone', () => {
   const mockOnFileAdded = jest.fn();

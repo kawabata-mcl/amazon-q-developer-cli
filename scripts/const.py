@@ -7,7 +7,7 @@ CHAT_BINARY_NAME = "qchat"
 PTY_BINARY_NAME = "qterm"
 DESKTOP_BINARY_NAME = "q-desktop"
 URL_SCHEMA = "q"
-TAURI_PRODUCT_NAME = "q_desktop"
+TAURI_PRODUCT_NAME = "Amazon Q Desktop"
 LINUX_PACKAGE_NAME = "amazon-q"
 
 # macos specific

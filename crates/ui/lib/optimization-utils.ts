@@ -81,14 +81,14 @@ export function createMemoizer<T, R>(
  */
 export function useStableCallback<T extends (...args: any[]) => any>(
   callback: T,
-  deps: React.DependencyList
+  deps: readonly unknown[]
 ): T {
   const ref = useRef<T>(callback);
   
   // Update ref when dependencies change
   useEffect(() => {
     ref.current = callback;
-  }, deps);
+  }, [callback, ...deps]);
   
   // Return stable callback that always calls the latest version
   return useCallback((...args: Parameters<T>) => {
@@ -104,7 +104,7 @@ export function useMemoWithEquality<T>(
   deps: React.DependencyList,
   equalityFn: (a: T, b: T) => boolean = Object.is
 ): T {
-  const ref = useRef<{ deps: React.DependencyList; value: T }>();
+  const ref = useRef<{ deps: React.DependencyList; value: T } | null>(null);
   
   if (!ref.current || !depsEqual(ref.current.deps, deps)) {
     const newValue = factory();
@@ -114,7 +114,7 @@ export function useMemoWithEquality<T>(
     }
   }
   
-  return ref.current.value;
+  return (ref.current as { deps: React.DependencyList; value: T }).value;
 }
 
 /**
@@ -154,12 +154,11 @@ export function useDebouncedValue<T>(value: T, delay: number): T {
  */
 export function useThrottledCallback<T extends (...args: any[]) => any>(
   callback: T,
-  delay: number,
-  deps: React.DependencyList
+  delay: number
 ): T {
   const throttledFn = useMemo(
     () => throttle(callback, delay),
-    [callback, delay, ...deps]
+    [callback, delay]
   );
   
   return throttledFn as T;
@@ -170,12 +169,11 @@ export function useThrottledCallback<T extends (...args: any[]) => any>(
  */
 export function useDebouncedCallback<T extends (...args: any[]) => any>(
   callback: T,
-  delay: number,
-  deps: React.DependencyList
+  delay: number
 ): T {
   const debouncedFn = useMemo(
     () => debounce(callback, delay),
-    [callback, delay, ...deps]
+    [callback, delay]
   );
   
   return debouncedFn as T;
@@ -254,7 +252,7 @@ export class AsyncOperationManager {
    * Cancel all operations
    */
   cancelAll(): void {
-    for (const [key, controller] of this.operations) {
+    for (const [, controller] of this.operations) {
       controller.abort();
     }
     this.operations.clear();
@@ -296,7 +294,7 @@ export function useAsyncOperation() {
 /**
  * Batch state updates to prevent multiple re-renders
  */
-export function batchUpdates<T>(updates: (() => void)[]): void {
+export function batchUpdates(updates: (() => void)[]): void {
   // Use React's unstable_batchedUpdates if available
   if (typeof (React as any).unstable_batchedUpdates === 'function') {
     (React as any).unstable_batchedUpdates(() => {
@@ -313,7 +311,7 @@ export function batchUpdates<T>(updates: (() => void)[]): void {
  */
 export function useBatchedUpdates() {
   const pendingUpdates = useRef<(() => void)[]>([]);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const addUpdate = useCallback((update: () => void) => {
     pendingUpdates.current.push(update);
@@ -354,7 +352,7 @@ export function useSelector<TState, TSelected>(
   
   const selectorRef = useRef(selector);
   const equalityFnRef = useRef(equalityFn);
-  const selectedRef = useRef<TSelected>();
+  const selectedRef = useRef<TSelected | null>(null);
   const hasSelectedRef = useRef(false);
   
   // Update refs
@@ -366,7 +364,7 @@ export function useSelector<TState, TSelected>(
   const currentSelected = selectorRef.current(currentState);
   
   // Check if we need to update
-  if (!hasSelectedRef.current || !equalityFnRef.current(selectedRef.current!, currentSelected)) {
+  if (!hasSelectedRef.current || !equalityFnRef.current(selectedRef.current as TSelected, currentSelected)) {
     selectedRef.current = currentSelected;
     hasSelectedRef.current = true;
   }
@@ -376,7 +374,7 @@ export function useSelector<TState, TSelected>(
       const newState = store.getState();
       const newSelected = selectorRef.current(newState);
       
-      if (!equalityFnRef.current(selectedRef.current!, newSelected)) {
+      if (!equalityFnRef.current(selectedRef.current as TSelected, newSelected)) {
         selectedRef.current = newSelected;
         forceRender();
       }
@@ -385,7 +383,7 @@ export function useSelector<TState, TSelected>(
     return unsubscribe;
   }, [store]);
   
-  return selectedRef.current!;
+  return selectedRef.current as TSelected;
 }
 
 // Re-export React for convenience
