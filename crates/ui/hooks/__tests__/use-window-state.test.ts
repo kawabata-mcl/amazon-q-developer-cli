@@ -39,7 +39,7 @@ describe('useWindowState', () => {
     useSettingsStore.setState({ settings: DEFAULT_SETTINGS, isLoading: false, error: null });
   });
 
-  test('applyWindowSettings はサイズ・位置・フラグを適用する', async () => {
+  test('applyWindowSettings applies size, position, and flags', async () => {
     useSettingsStore.setState((s: any) => ({
       settings: {
         ...s.settings,
@@ -66,7 +66,7 @@ describe('useWindowState', () => {
     expect(appWindow.setAlwaysOnTop).toHaveBeenCalledWith(true);
   });
 
-  test('rememberPosition=false の場合は位置を設定しない', async () => {
+  test('When rememberPosition=false, position is not set', async () => {
     useSettingsStore.setState((s: any) => ({
       settings: {
         ...s.settings,
@@ -89,7 +89,7 @@ describe('useWindowState', () => {
     expect(appWindow.setPosition).not.toHaveBeenCalled();
   });
 
-  test('getCurrentWindowState は invoke の結果を返す', async () => {
+  test('getCurrentWindowState returns invoke result', async () => {
     const { result } = renderHook(() => useWindowState());
     const state = await result.current.getCurrentWindowState();
     expect(state).toMatchObject({ width: 1280, height: 720 });

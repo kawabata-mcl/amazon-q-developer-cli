@@ -13,13 +13,13 @@ function makeMessages(count: number, content = 'hello'): ChatMessage[] {
 }
 
 describe('VirtualMessageList', () => {
-  test('空の時に空状態を表示', () => {
+  test('Shows empty state when empty', () => {
     render(<VirtualMessageList messages={[]} isLoading={false} />)
     expect(screen.getByTestId('virtual-message-list')).toBeInTheDocument()
     expect(screen.getByText(/No messages yet/i)).toBeInTheDocument()
   })
 
-  test('大量メッセージでも一部のみレンダリングされる', () => {
+  test('Only a portion is rendered even with many messages', () => {
     const messages = makeMessages(1000)
     render(
       <div style={{ height: 600 }}>
@@ -27,14 +27,14 @@ describe('VirtualMessageList', () => {
       </div>
     )
 
-    // 仮想化により、DOM上の要素数は全体より少ないはず
+    // Due to virtualization, DOM element count should be less than total
     const container = screen.getByTestId('virtual-message-list')
     const renderedItems = container.querySelectorAll('[data-message-id]')
     expect(renderedItems.length).toBeLessThan(1000)
     expect(renderedItems.length).toBeGreaterThan(0)
   })
 
-  test('スクロールで可視範囲が更新される', () => {
+  test('Visible range updates when scrolling', () => {
     const messages = makeMessages(200)
     render(
       <div style={{ height: 600 }}>
@@ -43,14 +43,14 @@ describe('VirtualMessageList', () => {
     )
     const container = screen.getByTestId('virtual-message-list')
 
-    // 初期表示の最初の要素が存在
+    // Initial first element exists
     expect(container.querySelector('[data-message-id="m-0"]')).toBeTruthy()
 
-    // 下方向へスクロールして可視範囲が変わることを検証
+    // Scroll down to verify visible range changes
     Object.defineProperty(container, 'scrollTop', { value: 1200, writable: true })
     fireEvent.scroll(container)
 
-    // 先頭はもう見えない想定
+    // First element should no longer be visible
     expect(container.querySelector('[data-message-id="m-0"]')).toBeFalsy()
   })
 })

@@ -39,13 +39,13 @@ describe('useTheme', () => {
     window.matchMedia = originalMatchMedia;
   });
 
-  test('初期は system テーマで dark クラスは付与されない', () => {
+  test('Initially uses system theme and dark class is not applied', () => {
     const { result } = renderHook(() => useTheme());
     expect(result.current.isSystem).toBe(true);
     expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 
-  test('テーマを Dark に変更すると dark クラスが付与され、invoke が呼ばれる', async () => {
+  test('When theme is changed to Dark, dark class is applied and invoke is called', async () => {
     const { result } = renderHook(() => useTheme());
     await act(async () => {
       await result.current.setTheme('dark');
@@ -54,7 +54,7 @@ describe('useTheme', () => {
     expect(mockInvoke).toHaveBeenCalledWith('apply_theme', { theme: 'dark' });
   });
 
-  test('テーマを Light に変更すると dark クラスが外れる', async () => {
+  test('When theme is changed to Light, dark class is removed', async () => {
     const { result } = renderHook(() => useTheme());
     await act(async () => {
       await result.current.setTheme('dark');

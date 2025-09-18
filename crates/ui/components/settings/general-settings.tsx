@@ -8,11 +8,11 @@ import { useSettings } from '@/hooks/use-settings';
 
 const LANGUAGE_OPTIONS = [
   { value: 'en', label: 'English' },
-  { value: 'ja', label: '日本語' },
+  { value: 'ja', label: 'Japanese' },
   { value: 'es', label: 'Español' },
   { value: 'fr', label: 'Français' },
   { value: 'de', label: 'Deutsch' },
-  { value: 'zh', label: '中文' }
+  { value: 'zh', label: 'Chinese' }
 ];
 
 export function GeneralSettings() {

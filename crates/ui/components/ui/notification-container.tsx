@@ -62,7 +62,7 @@ export function NotificationContainer({
         className
       )}
       role="region"
-      aria-label="通知"
+      aria-label="Notifications"
     >
       <div className="space-y-3">
         {activeNotifications.map((notification) => (
@@ -135,7 +135,7 @@ export function NotificationBadge({ className, showZero = false }: NotificationB
         'ring-2 ring-white dark:ring-gray-900',
         className
       )}
-      aria-label={`${unreadCount}件の未読通知`}
+      aria-label={`${unreadCount} unread notifications`}
     >
       {unreadCount > 99 ? '99+' : unreadCount}
     </span>
@@ -165,7 +165,7 @@ export function NotificationBell({ onClick, className, showBadge = true }: Notif
         'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
         className
       )}
-      aria-label={`通知 ${hasUnread ? `(${unreadCount}件の未読)` : ''}`}
+      aria-label={`Notifications ${hasUnread ? `(${unreadCount} unread)` : ''}`}
     >
       <svg
         className={cn(
