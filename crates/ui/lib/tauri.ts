@@ -1,27 +1,15 @@
 import { invoke } from '@tauri-apps/api/tauri';
-import type { AuthStatus, LoginResponse } from '@/types/auth';
+import type { AuthStatus } from '@/types/auth';
 import type { ChatMessage, SendMessageRequest, ChatConversation } from '@/types/chat';
-import type { AppSettings } from '@/types/common';
+import type { AppSettings } from '@/types/settings';
 import { handleAsyncError } from '@/lib/error-handler';
 
 // Authentication commands
-export async function loginCommand(): Promise<LoginResponse> {
-  try {
-    const status = await handleAsyncError(
-      invoke<AuthStatus>('login'),
-      { command: 'login', component: 'auth' }
-    );
-    return {
-      success: true,
-      status,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      status: { type: 'Error', message: error as string },
-      error: error as string,
-    };
-  }
+export async function loginCommand(): Promise<AuthStatus> {
+  return await handleAsyncError(
+    invoke<AuthStatus>('login'),
+    { command: 'login', component: 'auth' }
+  );
 }
 
 export async function logoutCommand(): Promise<void> {
@@ -50,6 +38,10 @@ export async function sendMessageCommand(request: SendMessageRequest): Promise<u
   );
 }
 
+export async function sendMessageStreamCommand(message: string): Promise<void> {
+  return await invoke('send_message_stream', { message });
+}
+
 export async function getConversationHistoryCommand(conversationId: string): Promise<ChatMessage[]> {
   return await invoke('get_conversation_history', { conversation_id: conversationId });
 }
@@ -58,7 +50,7 @@ export async function startNewConversationCommand(): Promise<string> {
   return await invoke('start_new_conversation');
 }
 
-export async function getConversationsCommand(): Promise<ChatConversation[]> {
+export async function getAllConversationsCommand(): Promise<ChatConversation[]> {
   return await invoke('get_all_conversations');
 }
 
@@ -92,10 +84,14 @@ export async function clearContextCommand(): Promise<void> {
 }
 
 // Settings commands
-export async function getSettingsCommand(): Promise<Record<string, unknown>> {
-  return await invoke('get_settings');
+export async function getAppSettingsCommand(): Promise<AppSettings> {
+  return await invoke('get_app_settings');
 }
 
-export async function saveSettingsCommand(settings: AppSettings): Promise<void> {
-  return await invoke('update_settings', { settings });
+export async function updateAppSettingsCommand(settings: AppSettings): Promise<void> {
+  return await invoke('update_app_settings', { settings });
+}
+
+export async function resetAppSettingsCommand(): Promise<void> {
+  return await invoke('reset_app_settings');
 }

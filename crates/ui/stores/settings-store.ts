@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { invoke } from '@tauri-apps/api/tauri';
+import { getAppSettingsCommand, updateAppSettingsCommand, resetAppSettingsCommand } from '@/lib/tauri';
 import type { AppSettings } from '@/types/settings';
 import { DEFAULT_SETTINGS } from '@/types/settings';
 
@@ -29,7 +29,7 @@ export const useSettingsStore = create<SettingsState>()(
       loadSettings: async () => {
         set({ isLoading: true, error: null });
         try {
-          const settings = await invoke<AppSettings>('get_app_settings');
+          const settings = await getAppSettingsCommand() as AppSettings;
           set({ settings, isLoading: false });
         } catch (error) {
           console.error('Failed to load settings:', error);
@@ -41,12 +41,35 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       updateSettings: async (updates: Partial<AppSettings>) => {
-        const currentSettings = get().settings;
-        const newSettings = { ...currentSettings, ...updates };
+        const currentSettings = get().settings || DEFAULT_SETTINGS;
+        const newSettings: AppSettings = {
+          ...currentSettings,
+          appearance: updates.appearance
+            ? { ...currentSettings.appearance, ...updates.appearance }
+            : currentSettings.appearance,
+          window: updates.window
+            ? { ...currentSettings.window, ...updates.window }
+            : currentSettings.window,
+          keyboard: updates.keyboard
+            ? {
+                ...currentSettings.keyboard,
+                ...updates.keyboard,
+                shortcuts: updates.keyboard.shortcuts
+                  ? {
+                      ...currentSettings.keyboard.shortcuts,
+                      ...updates.keyboard.shortcuts,
+                    }
+                  : currentSettings.keyboard.shortcuts,
+              }
+            : currentSettings.keyboard,
+          general: updates.general
+            ? { ...currentSettings.general, ...updates.general }
+            : currentSettings.general,
+        };
         
         set({ isLoading: true, error: null });
         try {
-          await invoke('update_app_settings', { settings: newSettings });
+          await updateAppSettingsCommand(newSettings);
           set({ settings: newSettings, isLoading: false });
         } catch (error) {
           console.error('Failed to update settings:', error);
@@ -60,7 +83,7 @@ export const useSettingsStore = create<SettingsState>()(
       resetSettings: async () => {
         set({ isLoading: true, error: null });
         try {
-          await invoke('reset_app_settings');
+          await resetAppSettingsCommand();
           set({ settings: DEFAULT_SETTINGS, isLoading: false });
         } catch (error) {
           console.error('Failed to reset settings:', error);
@@ -72,38 +95,38 @@ export const useSettingsStore = create<SettingsState>()(
       },
 
       updateAppearanceSettings: async (updates: Partial<AppSettings['appearance']>) => {
-        const currentSettings = get().settings;
+        const currentSettings = get().settings || DEFAULT_SETTINGS;
         const newSettings = {
           ...currentSettings,
           appearance: { ...currentSettings.appearance, ...updates }
-        };
+        } as AppSettings;
         await get().updateSettings(newSettings);
       },
 
       updateWindowSettings: async (updates: Partial<AppSettings['window']>) => {
-        const currentSettings = get().settings;
+        const currentSettings = get().settings || DEFAULT_SETTINGS;
         const newSettings = {
           ...currentSettings,
           window: { ...currentSettings.window, ...updates }
-        };
+        } as AppSettings;
         await get().updateSettings(newSettings);
       },
 
       updateKeyboardSettings: async (updates: Partial<AppSettings['keyboard']>) => {
-        const currentSettings = get().settings;
+        const currentSettings = get().settings || DEFAULT_SETTINGS;
         const newSettings = {
           ...currentSettings,
           keyboard: { ...currentSettings.keyboard, ...updates }
-        };
+        } as AppSettings;
         await get().updateSettings(newSettings);
       },
 
       updateGeneralSettings: async (updates: Partial<AppSettings['general']>) => {
-        const currentSettings = get().settings;
+        const currentSettings = get().settings || DEFAULT_SETTINGS;
         const newSettings = {
           ...currentSettings,
           general: { ...currentSettings.general, ...updates }
-        };
+        } as AppSettings;
         await get().updateSettings(newSettings);
       }
     }),
@@ -113,3 +136,5 @@ export const useSettingsStore = create<SettingsState>()(
     }
   )
 );
+
+export { DEFAULT_SETTINGS } from '@/types/settings'

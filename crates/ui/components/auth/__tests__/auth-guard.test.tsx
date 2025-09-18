@@ -2,20 +2,13 @@ import '@testing-library/jest-dom';
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 
-// Mock BEFORE requiring the component under test
+// Mock the auth hook BEFORE importing the component under test
 jest.mock('@/hooks/use-auth', () => ({
   __esModule: true,
   useAuth: jest.fn(),
 }));
+
 const useAuthModule = jest.requireMock('@/hooks/use-auth') as { useAuth: jest.Mock };
-
-// Mock Next.js router
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({
-    push: jest.fn(),
-  }),
-}));
-
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { AuthGuard } = require('../auth-guard');
 
@@ -24,51 +17,207 @@ describe('AuthGuard', () => {
     jest.clearAllMocks();
   });
 
-  test('renders children when authenticated', () => {
-    useAuthModule.useAuth.mockImplementation(() => ({
-      // state
-      status: { type: 'Authenticated', username: 'test', provider: 'AWS' },
-      isLoading: false,
-      error: null,
+  test('renders children when user is authenticated', () => {
+    useAuthModule.useAuth.mockReturnValue({
       isAuthenticated: true,
       isAuthenticating: false,
       hasError: false,
-      user: { username: 'test', provider: 'AWS' },
-      errorMessage: null,
-      // actions
-      login: jest.fn(async () => {}),
-      logout: jest.fn(async () => {}),
-      checkAuthStatus: jest.fn(async () => {}),
-      clearError: jest.fn(),
-      setLoading: jest.fn(),
-    }));
+      user: { username: 'testuser', provider: 'AWS' },
+      error: null,
+    });
 
-    render(<AuthGuard><div data-testid="child" /></AuthGuard>);
-    expect(!!screen.getByTestId('child')).toBe(true);
+    render(
+      <AuthGuard>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Protected content')).toBeInTheDocument();
   });
 
-  test('shows loading when authenticating', () => {
-    useAuthModule.useAuth.mockImplementation(() => ({
-      // state
-      status: { type: 'Authenticating' },
-      isLoading: true,
-      error: null,
+  test('renders loading state when authenticating', () => {
+    useAuthModule.useAuth.mockReturnValue({
       isAuthenticated: false,
       isAuthenticating: true,
       hasError: false,
       user: null,
-      errorMessage: null,
-      // actions
-      login: jest.fn(async () => {}),
-      logout: jest.fn(async () => {}),
-      checkAuthStatus: jest.fn(async () => {}),
-      clearError: jest.fn(),
-      setLoading: jest.fn(),
-    }));
+      error: null,
+    });
 
-    render(<AuthGuard><div data-testid="child" /></AuthGuard>);
+    render(
+      <AuthGuard>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByTestId('spinner')).toBeInTheDocument();
+    expect(screen.getByText('Checking authentication...')).toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  test('renders auth panel when user is not authenticated', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: false,
+      isAuthenticating: false,
+      hasError: false,
+      user: null,
+      error: null,
+    });
+
+    render(
+      <AuthGuard>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Authentication Required')).toBeInTheDocument();
+    expect(screen.getByText('Please sign in to continue')).toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  test('renders error state when authentication fails', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: false,
+      isAuthenticating: false,
+      hasError: true,
+      user: null,
+      error: 'Authentication failed',
+    });
+
+    render(
+      <AuthGuard>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Authentication Error')).toBeInTheDocument();
+    expect(screen.getByText('Authentication failed')).toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  test('renders custom fallback when provided and not authenticated', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: false,
+      isAuthenticating: false,
+      hasError: false,
+      user: null,
+      error: null,
+    });
+
+    const CustomFallback = () => <div>Custom login required</div>;
+
+    render(
+      <AuthGuard fallback={<CustomFallback />}>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Custom login required')).toBeInTheDocument();
+    expect(screen.queryByText('Authentication Required')).not.toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  test('renders custom loading component when provided and authenticating', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: false,
+      isAuthenticating: true,
+      hasError: false,
+      user: null,
+      error: null,
+    });
+
+    const CustomLoading = () => <div>Custom loading...</div>;
+
+    render(
+      <AuthGuard loadingComponent={<CustomLoading />}>
+        <div>Protected content</div>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Custom loading...')).toBeInTheDocument();
+    expect(screen.queryByText('Checking authentication...')).not.toBeInTheDocument();
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
+  });
+
+  test('handles multiple children correctly', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      isAuthenticating: false,
+      hasError: false,
+      user: { username: 'testuser', provider: 'AWS' },
+      error: null,
+    });
+
+    render(
+      <AuthGuard>
+        <div>First child</div>
+        <div>Second child</div>
+        <span>Third child</span>
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('First child')).toBeInTheDocument();
+    expect(screen.getByText('Second child')).toBeInTheDocument();
+    expect(screen.getByText('Third child')).toBeInTheDocument();
+  });
+
+  test('handles function children correctly', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      isAuthenticating: false,
+      hasError: false,
+      user: { username: 'testuser', provider: 'AWS' },
+      error: null,
+    });
+
+    render(
+      <AuthGuard>
+        {({ user }) => <div>Welcome, {user?.username}!</div>}
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('Welcome, testuser!')).toBeInTheDocument();
+  });
+
+  test('passes user data to function children', () => {
+    const mockUser = { username: 'johndoe', provider: 'AWS' as const };
     
-    expect(!!screen.getByText('Checking authentication status...')).toBe(true);
-    expect(screen.queryByTestId('child') === null).toBe(true);
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      isAuthenticating: false,
+      hasError: false,
+      user: mockUser,
+      error: null,
+    });
+
+    render(
+      <AuthGuard>
+        {({ user, isAuthenticated }) => (
+          <div>
+            User: {user?.username}, Authenticated: {isAuthenticated.toString()}
+          </div>
+        )}
+      </AuthGuard>
+    );
+
+    expect(screen.getByText('User: johndoe, Authenticated: true')).toBeInTheDocument();
+  });
+
+  test('does not render children when function returns null', () => {
+    useAuthModule.useAuth.mockReturnValue({
+      isAuthenticated: true,
+      isAuthenticating: false,
+      hasError: false,
+      user: { username: 'testuser', provider: 'AWS' },
+      error: null,
+    });
+
+    render(
+      <AuthGuard>
+        {() => null}
+      </AuthGuard>
+    );
+
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument();
   });
 });

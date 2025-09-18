@@ -37,7 +37,38 @@ export function generateId(): string {
   return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 
-export function truncateText(text: string, maxLength: number): string {
+export function truncateText(text: string, maxLength: number, suffix = '...'): string {
+  if (maxLength <= 0) return suffix;
   if (text.length <= maxLength) return text;
-  return text.substring(0, maxLength) + '...';
+  return text.substring(0, maxLength) + suffix;
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes <= 0) return '0 Bytes';
+  const kb = 1024;
+  const mb = kb * 1024;
+  const gb = mb * 1024;
+  if (bytes < kb) return `${bytes} Bytes`;
+  if (bytes < mb) return `${(bytes / kb).toFixed(1)} KB`;
+  if (bytes < gb) return `${(bytes / mb).toFixed(1)} MB`;
+  return `${(bytes / gb).toFixed(1)} GB`;
+}
+
+export function debounce<T extends (...args: any[]) => void>(fn: T, wait: number) {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+export function throttle<T extends (...args: any[]) => void>(fn: T, wait: number) {
+  let last = 0;
+  return function(this: any, ...args: Parameters<T>) {
+    const now = Date.now();
+    if (now - last >= wait) {
+      last = now;
+      fn.apply(this, args);
+    }
+  } as T;
 }

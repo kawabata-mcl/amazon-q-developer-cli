@@ -16,14 +16,15 @@ describe('SettingsPanel', () => {
   test('renders when open and shows General tab by default', async () => {
     render(<SettingsPanel isOpen={true} onClose={jest.fn()} />);
 
-    expect(await screen.findByText('Settings')).toBeInTheDocument();
-    expect(screen.getByText('Auto Save')).toBeInTheDocument();
-    expect(screen.getByLabelText('Enable Auto Save')).toBeInTheDocument();
+    const heading = await screen.findByText('Settings');
+    expect(heading).toBeTruthy();
+    expect(screen.getByText('Auto Save')).toBeTruthy();
+    expect(screen.getByLabelText('Enable Auto Save')).toBeTruthy();
   });
 
   test('does not render when closed', () => {
     render(<SettingsPanel isOpen={false} onClose={jest.fn()} />);
-    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+    expect(screen.queryByText('Settings')).toBeNull();
   });
 
   test('switches tabs and renders corresponding content', async () => {
@@ -31,18 +32,21 @@ describe('SettingsPanel', () => {
 
     // Appearance tab
     await userEvent.click(screen.getByRole('button', { name: 'Appearance' }));
-    expect(await screen.findByText('Theme')).toBeInTheDocument();
-    expect(screen.getByText('Color Theme')).toBeInTheDocument();
+    const themeHeading = await screen.findByText('Theme');
+    expect(themeHeading).toBeTruthy();
+    expect(screen.getByText('Color Theme')).toBeTruthy();
 
     // Window tab
     await userEvent.click(screen.getByRole('button', { name: 'Window' }));
-    expect(await screen.findByText('Window Size')).toBeInTheDocument();
-    expect(screen.getByText('Window Behavior')).toBeInTheDocument();
+    const windowSizeHeading = await screen.findByText('Window Size');
+    expect(windowSizeHeading).toBeTruthy();
+    expect(screen.getByText('Window Behavior')).toBeTruthy();
 
     // Keyboard tab
     await userEvent.click(screen.getByRole('button', { name: 'Keyboard' }));
-    expect(await screen.findByText('Global Shortcuts')).toBeInTheDocument();
-    expect(screen.getByText('Shortcut Format')).toBeInTheDocument();
+    const globalShortcutsHeading = await screen.findByText('Global Shortcuts');
+    expect(globalShortcutsHeading).toBeTruthy();
+    expect(screen.getByText('Shortcut Format')).toBeTruthy();
   });
 
   test('updates a general setting via switch and reflects immediately', async () => {
@@ -50,12 +54,12 @@ describe('SettingsPanel', () => {
 
     const autoSaveSwitch = await screen.findByRole('switch', { name: /enable auto save/i });
     // default is true
-    expect(autoSaveSwitch).toHaveAttribute('aria-checked', 'true');
+    expect(autoSaveSwitch.getAttribute('aria-checked')).toBe('true');
 
     await userEvent.click(autoSaveSwitch);
 
     await waitFor(() => {
-      expect(screen.getByRole('switch', { name: /enable auto save/i })).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByRole('switch', { name: /enable auto save/i }).getAttribute('aria-checked')).toBe('false');
     });
   });
 
@@ -74,7 +78,7 @@ describe('SettingsPanel', () => {
 
     // Now selected label updates to Dark
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Theme Select' })).toHaveTextContent('Dark');
+      expect(screen.getByRole('button', { name: 'Theme Select' }).textContent).toContain('Dark');
     });
   });
 
@@ -94,7 +98,7 @@ describe('SettingsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply Size' }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Current: .*1300.*×.*900px/)).toBeInTheDocument();
+      expect(screen.queryByText(/Current: .*1300.*×.*900px/)).not.toBeNull();
     });
   });
 
@@ -104,23 +108,22 @@ describe('SettingsPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Keyboard' }));
 
     const globalSwitch = await screen.findByRole('switch', { name: /enable global shortcuts/i });
-    expect(globalSwitch).toHaveAttribute('aria-checked', 'false');
+    expect(globalSwitch.getAttribute('aria-checked')).toBe('false');
 
     await userEvent.click(globalSwitch);
 
     await waitFor(() => {
-      expect(screen.getByRole('switch', { name: /enable global shortcuts/i })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('switch', { name: /enable global shortcuts/i }).getAttribute('aria-checked')).toBe('true');
     });
 
     expect(
-      screen.getByText(/Global shortcuts may require accessibility permissions/i)
-    ).toBeInTheDocument();
+      screen.queryByText(/Global shortcuts may require accessibility permissions/i)
+    ).not.toBeNull();
   });
 
   test('reset all settings restores defaults', async () => {
     // Mock confirm to accept
-    const origConfirm = window.confirm;
-    window.confirm = jest.fn().mockReturnValue(true);
+    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
 
     render(<SettingsPanel isOpen={true} onClose={jest.fn()} />);
 
@@ -128,7 +131,7 @@ describe('SettingsPanel', () => {
     const autoSaveSwitch = await screen.findByRole('switch', { name: /enable auto save/i });
     await userEvent.click(autoSaveSwitch);
     await waitFor(() => {
-      expect(screen.getByRole('switch', { name: /enable auto save/i })).toHaveAttribute('aria-checked', 'false');
+      expect(screen.getByRole('switch', { name: /enable auto save/i }).getAttribute('aria-checked')).toBe('false');
     });
 
     // Click Reset All Settings in sidebar
@@ -137,10 +140,10 @@ describe('SettingsPanel', () => {
 
     // Defaults restored (autoSave true)
     await waitFor(() => {
-      expect(screen.getByRole('switch', { name: /enable auto save/i })).toHaveAttribute('aria-checked', 'true');
+      expect(screen.getByRole('switch', { name: /enable auto save/i }).getAttribute('aria-checked')).toBe('true');
     });
 
-    window.confirm = origConfirm;
+    confirmSpy.mockRestore();
   });
 
   test('clicking Done calls onClose', async () => {

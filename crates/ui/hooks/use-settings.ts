@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useSettingsStore } from '@/stores/settings-store';
 import type { AppSettings } from '@/types/settings';
 import { DEFAULT_SETTINGS } from '@/types/settings';
@@ -45,15 +45,24 @@ export function useSettings() {
 
   const effectiveSettings = settings ?? DEFAULT_SETTINGS;
 
+  const theme = effectiveSettings.appearance.theme;
+  const isDarkMode = useMemo(() => theme === 'dark', [theme]);
+  const isLightMode = useMemo(() => theme === 'light', [theme]);
+  const isSystemTheme = useMemo(() => theme === 'system', [theme]);
+
   return {
     settings: effectiveSettings,
     isLoading,
     error,
+    loadSettings,
     updateSettings,
     updateSetting,
     resetSettings,
     // Convenience getters
-    theme: effectiveSettings.appearance.theme,
+    theme,
+    isDarkMode,
+    isLightMode,
+    isSystemTheme,
     fontSize: effectiveSettings.appearance.fontSize,
     fontFamily: effectiveSettings.appearance.fontFamily,
     shortcuts: effectiveSettings.keyboard.shortcuts,

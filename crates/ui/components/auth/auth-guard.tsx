@@ -8,15 +8,24 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogIn, AlertCircle } from 'lucide-react';
 
+type AuthGuardRenderProps = {
+  isAuthenticated: boolean;
+  isAuthenticating: boolean;
+  hasError: boolean;
+  user: { username: string; provider: 'AWS' | string } | null;
+};
+
 interface AuthGuardProps {
-  children: ReactNode;
+  children: ReactNode | ((props: AuthGuardRenderProps) => ReactNode);
   fallback?: ReactNode;
+  loadingComponent?: ReactNode;
   redirectTo?: string;
 }
 
 export function AuthGuard({ 
   children, 
   fallback,
+  loadingComponent,
   redirectTo = '/auth' 
 }: AuthGuardProps) {
   const router = useRouter();
@@ -25,8 +34,10 @@ export function AuthGuard({
     isAuthenticating, 
     hasError, 
     errorMessage,
+    error,
     login,
-    clearError 
+    clearError,
+    user,
   } = useAuth();
 
   // Redirect to auth page if not authenticated and not loading
@@ -41,26 +52,29 @@ export function AuthGuard({
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <Card className="p-8 text-center">
-          <Spinner className="h-8 w-8 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-400">
-            Checking authentication status...
-          </p>
+          {loadingComponent ?? (
+            <>
+              <Spinner className="h-8 w-8 mx-auto mb-4" />
+              <p className="text-gray-600 dark:text-gray-400">
+                Checking authentication...
+              </p>
+            </>
+          )}
         </Card>
       </div>
     );
   }
 
   // Show error state with retry option
-  if (hasError && errorMessage) {
+  if (hasError) {
+    const message = (errorMessage as string | undefined) ?? (typeof error === 'string' ? error : 'Authentication failed');
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
         <Card className="p-8 text-center max-w-md">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-            Authentication Error
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Authentication Error</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {errorMessage}
+            {message}
           </p>
           <div className="space-y-2">
             <Button
@@ -93,16 +107,25 @@ export function AuthGuard({
 
   // Show children if authenticated
   if (isAuthenticated) {
+    const renderProps: AuthGuardRenderProps = {
+      isAuthenticated,
+      isAuthenticating,
+      hasError,
+      user,
+    };
+    if (typeof children === 'function') {
+      const rendered = (children as (p: AuthGuardRenderProps) => ReactNode)(renderProps);
+      return <>{rendered}</>;
+    }
     return <>{children}</>;
   }
 
-  // Default fallback - should not reach here due to redirect effect
+  // Default fallback for unauthenticated
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <Card className="p-8 text-center">
-        <p className="text-gray-600 dark:text-gray-400">
-          Redirecting to login...
-        </p>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Authentication Required</h2>
+        <p className="text-gray-600 dark:text-gray-400">Please sign in to continue</p>
       </Card>
     </div>
   );

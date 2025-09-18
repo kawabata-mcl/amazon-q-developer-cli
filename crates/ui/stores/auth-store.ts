@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { loginCommand, logoutCommand, getAuthStatusCommand } from '@/lib/tauri';
-import type { AuthStatus, AuthState } from '@/types/auth';
+import type { AuthState } from '@/types/auth';
 
 interface AuthStore extends AuthState {
   // Actions
@@ -14,7 +14,7 @@ interface AuthStore extends AuthState {
 
 export const useAuthStore = create<AuthStore>()(
   devtools(
-    (set, get) => ({
+    (set) => ({
       // Initial state
       status: { type: 'NotAuthenticated' },
       isLoading: false,
@@ -25,25 +25,16 @@ export const useAuthStore = create<AuthStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await loginCommand();
-          
-          if (response.success) {
-            set({ 
-              status: response.status,
-              isLoading: false,
-              error: null 
-            });
-          } else {
-            set({ 
-              status: { type: 'Error', message: response.error || 'Login failed' },
-              isLoading: false,
-              error: response.error || 'Login failed'
-            });
-          }
+          const status = await loginCommand();
+          set({ 
+            status,
+            isLoading: false,
+            error: null 
+          });
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           set({ 
-            status: { type: 'Error', message: errorMessage },
+            status: { type: 'NotAuthenticated' },
             isLoading: false,
             error: errorMessage
           });
@@ -82,7 +73,7 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Failed to check auth status';
           set({ 
-            status: { type: 'Error', message: errorMessage },
+            status: { type: 'NotAuthenticated' },
             isLoading: false,
             error: errorMessage
           });

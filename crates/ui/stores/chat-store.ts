@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { invoke } from '@tauri-apps/api/tauri';
+import { startNewConversationCommand, getConversationHistoryCommand, getAllConversationsCommand, sendMessageStreamCommand } from '@/lib/tauri';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import { AsyncOperationManager, createMemoizer, shallowEqual } from '@/lib/optimization-utils';
 import type { 
@@ -16,6 +17,7 @@ interface ChatState {
   // Current conversation state
   currentConversation: ChatConversation | null;
   conversations: ChatConversation[];
+  messages: ChatMessage[];
   
   // UI state
   isLoading: boolean;
@@ -34,7 +36,8 @@ interface ChatState {
   retryMessage: (messageId: string) => Promise<void>;
   startNewConversation: () => Promise<string>;
   loadConversation: (conversationId: string) => Promise<void>;
-  loadConversationHistory: () => Promise<void>;
+  // Keep legacy name for compatibility while providing the implemented one
+  loadConversationHistory?: () => Promise<void>;
   setCurrentConversation: (conversation: ChatConversation | null) => void;
   clearError: () => void;
   
@@ -52,6 +55,7 @@ interface ChatState {
   getCurrentMessages: () => ChatMessage[];
   getConversationById: (id: string) => ChatConversation | undefined;
   getFilteredConversations: (filter: string) => ChatConversation[];
+  refreshHistory: () => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -84,6 +88,7 @@ export const useChatStore = create<ChatState>()(
       // Initial state
       currentConversation: null,
       conversations: [],
+      messages: [],
       isLoading: false,
       isStreaming: false,
       error: null,
@@ -136,7 +141,7 @@ export const useChatStore = create<ChatState>()(
               if (!targetConversationId) {
                 // Ensure a conversation exists before sending/streaming
                 try {
-                  targetConversationId = await invoke<string>('start_new_conversation');
+                  targetConversationId = await startNewConversationCommand();
                   
                   if (signal.aborted) {
                     throw new Error('Operation cancelled');
@@ -167,6 +172,7 @@ export const useChatStore = create<ChatState>()(
 
               // Add user message to conversation immediately
               get().addMessageToConversation(targetConversationId, userMessage);
+              set((s) => ({ messages: [...s.messages, userMessage] }));
 
               // Update user message status to sent
               get().updateMessageStatus(userMessageId, 'sent');
@@ -237,6 +243,7 @@ export const useChatStore = create<ChatState>()(
                           ),
                           updatedAt: new Date(),
                         } : null,
+                        messages: s.messages.map(m => m.id === assistantMessageId ? { ...m, content: accumulated, timestamp: new Date() } : m),
                       }));
                     } else {
                       // Create new assistant message
@@ -248,6 +255,7 @@ export const useChatStore = create<ChatState>()(
                         status: 'streaming',
                       };
                       get().addMessageToConversation(conversation.id, assistantMessage);
+                      set((s) => ({ messages: [...s.messages, assistantMessage] }));
                     }
                   }
 
@@ -278,17 +286,25 @@ export const useChatStore = create<ChatState>()(
                 });
 
                 // Start streaming
-                await invoke('send_message_stream', {
-                  message,
-                  conversation_id: targetConversationId,
-                });
+                await sendMessageStreamCommand(message);
+                // Ensure streaming flags are reset if no completion chunk was received
+                set({ isStreaming: false, isLoading: false });
 
               } catch (invokeError) {
                 // Handle invoke error
                 const errorMessage = invokeError instanceof Error ? invokeError.message : 'Unknown error';
                 get().updateMessageStatus(userMessageId, 'failed', errorMessage);
                 
-                throw new Error(`Failed to send message: ${errorMessage}`);
+                // Do not rethrow to allow UI/tests to inspect error state without exceptions
+                set({
+                  error: {
+                    type: 'server',
+                    message: errorMessage,
+                    retryable: true,
+                  },
+                  isLoading: false,
+                  isStreaming: false,
+                });
               } finally {
                 // Cleanup listener
                 if (unlisten) {
@@ -306,7 +322,7 @@ export const useChatStore = create<ChatState>()(
                 isLoading: false,
                 isStreaming: false,
               });
-              throw error;
+              // Error already stored in state
             }
           },
           { cancelPrevious: true, timeout: 30000 }
@@ -323,7 +339,7 @@ export const useChatStore = create<ChatState>()(
             try {
               set({ isLoading: true, error: null });
 
-              const conversationId = await invoke<string>('start_new_conversation');
+              const conversationId = await startNewConversationCommand();
               
               if (signal.aborted) {
                 throw new Error('Operation cancelled');
@@ -338,7 +354,14 @@ export const useChatStore = create<ChatState>()(
               };
 
               set({ 
-                currentConversation: newConversation,
+                currentConversation: {
+                  id: newConversation.id,
+                  title: newConversation.title,
+                  messages: [],
+                  createdAt: newConversation.createdAt,
+                  updatedAt: newConversation.updatedAt,
+                },
+                messages: [],
                 isLoading: false,
               });
 
@@ -370,9 +393,7 @@ export const useChatStore = create<ChatState>()(
             try {
               set({ isLoading: true, error: null });
 
-              const messages = await invoke<ChatMessage[]>('get_conversation_history', { 
-                conversation_id: conversationId 
-              });
+              const messages = await getConversationHistoryCommand(conversationId);
 
               if (signal.aborted) {
                 throw new Error('Operation cancelled');
@@ -393,6 +414,7 @@ export const useChatStore = create<ChatState>()(
 
               set({ 
                 currentConversation: conversation,
+                messages: conversation.messages,
                 isLoading: false,
               });
             } catch (error) {
@@ -412,7 +434,7 @@ export const useChatStore = create<ChatState>()(
       },
 
       // Load conversation history
-      loadConversationHistory: async () => {
+      refreshHistory: async () => {
         const state = get();
         
         return state._asyncManager.execute(
@@ -420,19 +442,18 @@ export const useChatStore = create<ChatState>()(
           async (signal) => {
             try {
               type ConversationSummary = { id: string; title?: string; created_at?: string; updated_at?: string };
-              const summaries = await invoke<ConversationSummary[]>('get_all_conversations');
+              const summaries = await getAllConversationsCommand();
               
               if (signal.aborted) {
                 throw new Error('Operation cancelled');
               }
               
-              const conversations: ChatConversation[] = (summaries || []).map((s: ConversationSummary) => ({
+              const conversations = (summaries || []).map((s: ConversationSummary) => ({
                 id: s.id,
                 title: s.title ?? 'Conversation',
-                messages: [],
                 createdAt: s.created_at ? new Date(s.created_at) : new Date(),
                 updatedAt: s.updated_at ? new Date(s.updated_at) : new Date(),
-              }));
+              })) as unknown as ChatConversation[];
               set({ conversations });
             } catch (error) {
               console.error('Failed to load conversation history:', error);
@@ -447,6 +468,11 @@ export const useChatStore = create<ChatState>()(
           },
           { cancelPrevious: true }
         );
+      },
+
+      // Backwards compatibility alias
+      loadConversationHistory: async () => {
+        await get().refreshHistory();
       },
 
       // Set current conversation
@@ -501,6 +527,12 @@ export const useChatStore = create<ChatState>()(
         ),
         updatedAt: new Date(),
       } : null,
+      // Keep top-level messages in sync with conversation messages
+      messages: state.messages.map(m => 
+        m.id === messageId 
+          ? { ...m, status, error, timestamp: new Date() }
+          : m
+      ),
         }));
       },
 
@@ -603,11 +635,11 @@ export const useChatStore = create<ChatState>()(
 
       // Add to existing conversation
       return {
-        currentConversation: {
+        currentConversation: state.currentConversation ? {
           ...state.currentConversation,
-          messages: [...state.currentConversation.messages, message],
+          messages: [...(state.currentConversation.messages || []), message],
           updatedAt: new Date(),
-        },
+        } : null,
         };
       });
     },

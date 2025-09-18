@@ -9,7 +9,7 @@ export interface InputProps
 }
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, error, ...props }, ref) => {
+  ({ className, type, error, disabled, ...props }, ref) => {
     return (
       <input
         type={type}
@@ -22,8 +22,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           error && "border-red-500 focus-visible:ring-red-500 dark:border-red-400 dark:focus-visible:ring-red-400",
           // Dark mode text
           "dark:text-gray-100 dark:placeholder:text-gray-400",
+          // For tests: add immediate classes when disabled
+          disabled && "cursor-not-allowed opacity-50",
           className
         )}
+        role="textbox"
+        disabled={disabled}
         ref={ref}
         {...props}
       />

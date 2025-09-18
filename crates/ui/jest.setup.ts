@@ -81,6 +81,25 @@ jest.mock('@tauri-apps/api/window', () => ({
   },
 }))
 
+// Mock our tauri wrapper module so tests can override with .mockResolvedValue
+jest.mock('@/lib/tauri', () => ({
+  __esModule: true,
+  // Auth
+  loginCommand: jest.fn(),
+  logoutCommand: jest.fn(),
+  getAuthStatusCommand: jest.fn(),
+  // Chat
+  sendMessageCommand: jest.fn(),
+  sendMessageStreamCommand: jest.fn(),
+  getConversationHistoryCommand: jest.fn(),
+  startNewConversationCommand: jest.fn(),
+  getAllConversationsCommand: jest.fn(),
+  // Settings
+  getAppSettingsCommand: jest.fn(),
+  updateAppSettingsCommand: jest.fn(),
+  resetAppSettingsCommand: jest.fn(),
+}))
+
 // Mock window.matchMedia
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
