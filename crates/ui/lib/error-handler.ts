@@ -2,7 +2,11 @@
  * Global error handling system for the desktop application
  */
 
-import { invoke } from '@tauri-apps/api/tauri';
+// Load Tauri invoke lazily to avoid SSR issues
+async function getInvoke() {
+  const { invoke } = await import('@tauri-apps/api/tauri');
+  return invoke;
+}
 
 // Error types and interfaces
 export interface AppError {
@@ -260,7 +264,8 @@ export function getErrorSeverity(error: AppError): ErrorSeverity {
 // Log error to backend
 export async function logError(error: AppError): Promise<void> {
   try {
-    await invoke('log_error', {
+    const invoke = await getInvoke();
+    await invoke('log_error' as never, {
       error: {
         id: error.id,
         type: error.type,
@@ -295,34 +300,36 @@ export class GlobalErrorHandler {
   
   private setupGlobalHandlers(): void {
     // Handle unhandled promise rejections
-    window.addEventListener('unhandledrejection', (event) => {
+    if (typeof window !== 'undefined') {
+      window.addEventListener('unhandledrejection', (event) => {
       const error = createAppError(event.reason, { source: 'unhandledrejection' });
       this.handleError(error);
       event.preventDefault();
-    });
+      });
     
     // Handle uncaught errors
-    window.addEventListener('error', (event) => {
-      const error = createAppError(event.error || event.message, {
-        source: 'uncaughtError',
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno
+      window.addEventListener('error', (event) => {
+        const error = createAppError(event.error || event.message, {
+          source: 'uncaughtError',
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno
+        });
+        this.handleError(error);
       });
-      this.handleError(error);
-    });
     
     // Handle React error boundary errors (if using React)
-    if (typeof window !== 'undefined' && (window as any).React) {
-      const originalConsoleError = console.error;
-      console.error = (...args: any[]) => {
-        // Check if this is a React error
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('React')) {
-          const error = createAppError(args.join(' '), { source: 'react' });
-          this.handleError(error);
-        }
-        originalConsoleError.apply(console, args);
-      };
+      if ((window as any).React) {
+        const originalConsoleError = console.error;
+        console.error = (...args: any[]) => {
+          // Check if this is a React error
+          if (args[0] && typeof args[0] === 'string' && args[0].includes('React')) {
+            const error = createAppError(args.join(' '), { source: 'react' });
+            this.handleError(error);
+          }
+          originalConsoleError.apply(console, args);
+        };
+      }
     }
   }
   
@@ -362,11 +369,17 @@ export class GlobalErrorHandler {
 }
 
 // Convenience functions
-export const errorHandler = GlobalErrorHandler.getInstance();
+let handlerSingleton: GlobalErrorHandler | null = null;
+export function getErrorHandler(): GlobalErrorHandler {
+  if (!handlerSingleton) {
+    handlerSingleton = GlobalErrorHandler.getInstance();
+  }
+  return handlerSingleton;
+}
 
 export function handleError(error: unknown, context?: Record<string, unknown>): AppError {
   const appError = createAppError(error, context);
-  errorHandler.handleError(appError);
+  getErrorHandler().handleError(appError);
   return appError;
 }
 
@@ -374,5 +387,5 @@ export function handleAsyncError<T>(
   promise: Promise<T>,
   context?: Record<string, unknown>
 ): Promise<T> {
-  return errorHandler.handleAsyncError(promise, context);
+  return getErrorHandler().handleAsyncError(promise, context);
 }

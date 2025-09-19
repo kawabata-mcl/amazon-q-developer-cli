@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useTheme } from '@/hooks/use-theme';
 import { useWindowState } from '@/hooks/use-window-state';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useSettings } from '@/hooks/use-settings';
 import { NotificationContainer } from '@/components/ui/notification-container';
-import { errorHandler } from '@/lib/error-handler';
+import { getErrorHandler } from '@/lib/error-handler';
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -98,16 +98,12 @@ function KeyboardShortcutProvider({ children }: { children: React.ReactNode }) {
 
 function ErrorHandlerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
-    // Initialize global error handler
-    const handler = errorHandler;
-    
-    // Log that error handling is initialized
+    // Initialize global error handler lazily on client
+    const handler = getErrorHandler();
     console.log('Global error handler initialized');
-    
     return () => {
-      // Cleanup if needed
+      // no-op
     };
   }, []);
-
   return <>{children}</>;
 }
