@@ -1,8 +1,9 @@
+// Keep as server component to allow metadata export
+
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { APP_NAME } from "@/lib/constants";
-import { AppProviders } from "@/components/providers/app-providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,11 +31,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <AppProviders>
-          <div className="min-h-screen flex flex-col">
-            {children}
-          </div>
-        </AppProviders>
+        <div className="min-h-screen flex flex-col">
+          {children}
+        </div>
       </body>
     </html>
   );

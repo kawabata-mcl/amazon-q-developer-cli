@@ -3,6 +3,7 @@
 import { AuthGuard } from '@/components/auth/auth-guard';
 import { MainLayout } from '@/components/layout';
 import { ChatWindow } from '@/components/chat/chat-window';
+import { AppProviders } from '@/components/providers/app-providers';
 import { useChatStore } from '@/stores/chat-store';
 
 function ChatPageContent() {
@@ -35,8 +36,10 @@ function ChatPageContent() {
 
 export default function ChatPage() {
   return (
-    <AuthGuard>
-      <ChatPageContent />
-    </AuthGuard>
+    <AppProviders>
+      <AuthGuard>
+        <ChatPageContent />
+      </AuthGuard>
+    </AppProviders>
   );
 }

@@ -142,7 +142,7 @@ export function FileViewer({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onEdit}
+                onClick={() => onEdit(file.content)}
                 title="Edit file"
               >
                 <Edit3 className="w-4 h-4" />

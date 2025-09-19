@@ -6,11 +6,18 @@ use tokio::sync::broadcast;
 use tracing::{error, info, warn};
 use rand;
 
-use chat_cli::auth::builder_id::{BuilderIdToken, TokenType};
+use chat_cli::auth::builder_id::{
+    BuilderIdToken,
+    TokenType,
+    start_device_authorization,
+    poll_create_token,
+    PollCreateToken,
+};
 use chat_cli::auth::{is_logged_in, logout as cli_logout};
 use chat_cli::cli::Agent;
 use chat_cli::cli::chat::context::{ContextFilePath, ContextManager};
 use chat_cli::os::Os;
+use chat_cli::util::open::open_url_async;
 
 /// CLI bridge implementation
 pub struct CliBridge {
@@ -87,11 +94,53 @@ impl CliBridge {
             return self.get_current_auth_info(&mut os).await;
         }
 
-        // GUI-driven login is not implemented here to avoid non-Send CLI flows.
-        // Prompt the caller to use the CLI to log in.
-        Err(Box::new(CliBridgeError::AuthenticationError(
-            "Login from GUI is not implemented. Please run `q login` in a terminal.".to_string(),
-        )))
+        // Start device authorization flow (Builder ID / Identity Center)
+        let start = start_device_authorization(&os.database, None, None).await
+            .map_err(|e| CliBridgeError::AuthenticationError(format!("Failed to start device authorization: {}", e)))?;
+
+        info!(
+            verification_uri = %start.verification_uri,
+            verification_uri_complete = %start.verification_uri_complete,
+            user_code = %start.user_code,
+            "Started device authorization; opening browser for verification"
+        );
+
+        // Try to open the browser to the verification URL (best-effort)
+        if let Err(e) = open_url_async(&start.verification_uri_complete).await {
+            warn!("Failed to open browser automatically: {}", e);
+        }
+
+        // Poll for token until complete or timeout
+        let poll_timeout = std::time::Duration::from_secs((start.expires_in as u64).saturating_sub(5));
+        let poll_interval = std::time::Duration::from_secs(start.interval as u64).max(std::time::Duration::from_secs(2));
+        let start_time = std::time::Instant::now();
+
+        loop {
+            match poll_create_token(&os.database, start.device_code.clone(), Some(start.start_url.clone()), Some(start.region.clone())).await {
+                PollCreateToken::Complete => {
+                    info!("Device authorization completed successfully");
+                    // Now we should be logged in — derive auth info
+                    return self.get_current_auth_info(&mut os).await;
+                },
+                PollCreateToken::Pending => {
+                    if start_time.elapsed() >= poll_timeout {
+                        error!("Device authorization timed out");
+                        return Err(Box::new(CliBridgeError::AuthenticationError(
+                            "Login timed out. Please try again.".to_string(),
+                        )));
+                    }
+                    tokio::time::sleep(poll_interval).await;
+                    continue;
+                },
+                PollCreateToken::Error(err) => {
+                    error!("Device authorization failed: {}", err);
+                    return Err(Box::new(CliBridgeError::AuthenticationError(format!(
+                        "Login failed: {}",
+                        err
+                    ))));
+                },
+            }
+        }
     }
 
     /// Execute logout process
