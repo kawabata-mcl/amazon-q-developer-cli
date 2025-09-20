@@ -1,0 +1,54 @@
+[package]
+name = "fig_desktop"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+homepage.workspace = true
+publish.workspace = true
+
+[lib]
+name = "fig_desktop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fig_desktop"
+path = "src/main.rs"
+
+[dependencies]
+# Tauri-related dependencies
+tauri.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+# Integration with existing chat-cli crate
+chat_cli = { path = "../chat-cli" }
+
+# Async runtime
+tokio.workspace = true
+futures.workspace = true
+
+# Error handling
+thiserror.workspace = true
+eyre.workspace = true
+
+# Logging
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# UUID generation
+uuid.workspace = true
+
+# Time handling
+time.workspace = true
+
+# File system operations
+dirs.workspace = true
+
+# Random number generation
+rand.workspace = true
+
+[features]
+# Enable Tauri's default features
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

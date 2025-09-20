@@ -1,0 +1,59 @@
+{
+  "name": "amazon-q-developer-cli",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": ".."
+  },
+  "remoteUser": "vscode",
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installOhMyZsh": true,
+      "upgradePackages": true
+    },
+    "ghcr.io/devcontainers/features/rust:1": {
+      "default": true,
+      "profile": "minimal",
+      "version": "1.87"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20",
+      "nodeGypDependencies": true
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "serayuzgur.crates",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "tauri-apps.tauri-vscode"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "editor.formatOnSave": true,
+        "eslint.useFlatConfig": true,
+        "python.defaultInterpreterPath": "/usr/local/bin/python3"
+      }
+    }
+  },
+  "mounts": [
+    "source=amazon-q-developer-cli-cargo-registry,target=/home/vscode/.cargo/registry,type=volume",
+    "source=amazon-q-developer-cli-cargo-git,target=/home/vscode/.cargo/git,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/postCreate.sh",
+  "updateContentCommand": "bash .devcontainer/postCreate.sh",
+  "runArgs": ["--init", "--privileged"],
+  "containerEnv": {
+    "CARGO_TERM_COLOR": "always"
+  },
+  "initializeCommand": "docker volume create amazon-q-developer-cli-cargo-registry 2>/dev/null || true && docker volume create amazon-q-developer-cli-cargo-git 2>/dev/null || true"
+}
+
+

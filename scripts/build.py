@@ -7,7 +7,7 @@ import os
 import shutil
 import time
 from typing import Any, Mapping, Sequence, List, Optional
-from const import APPLE_TEAM_ID, CHAT_BINARY_NAME, CHAT_PACKAGE_NAME
+from const import APPLE_TEAM_ID, CHAT_BINARY_NAME, CHAT_PACKAGE_NAME, DESKTOP_PACKAGE_NAME, DESKTOP_PACKAGE_PATH
 from util import debug, info, isDarwin, isLinux, run_cmd, run_cmd_output, warn
 from rust import cargo_cmd_name, rust_env, rust_targets
 from importlib import import_module
@@ -533,6 +533,43 @@ def build_linux(chat_path: pathlib.Path, signer: GpgSigner | None):
         signer.clean()
 
 
+def build_desktop_app(release: bool = True):
+    """
+    Builds the Tauri desktop application.
+    
+    Args:
+        release: Whether to build in release mode
+    """
+    info("Building desktop application")
+    
+    # Check if Tauri CLI is installed
+    try:
+        run_cmd_output(["cargo", "tauri", "--version"])
+    except Exception:
+        warn("Tauri CLI not found. Installing...")
+        run_cmd(["cargo", "install", "tauri-cli@1.6.0", "--locked"])
+    
+    # Build desktop application
+    args = ["cargo", "tauri", "build"]
+    if not release:
+        args.append("--debug")
+    
+    # Create universal binary for macOS
+    if isDarwin():
+        args.extend(["--target", "universal-apple-darwin"])
+    
+    run_cmd(
+        args,
+        cwd=DESKTOP_PACKAGE_PATH,
+        env={
+            **os.environ,
+            **rust_env(release=release),
+        },
+    )
+    
+    info("Desktop application build completed")
+
+
 def build(
     release: bool,
     stage_name: str | None = None,
@@ -590,6 +627,11 @@ def build(
         output_name=CHAT_BINARY_NAME,
         targets=targets,
     )
+
+    # Build desktop app only on macOS (currently macOS only)
+    if isDarwin():
+        info("Building", DESKTOP_PACKAGE_NAME)
+        build_desktop_app(release=release)
 
     if isDarwin():
         build_macos(chat_path, signing_data)
