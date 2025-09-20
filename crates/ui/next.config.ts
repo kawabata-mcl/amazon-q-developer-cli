@@ -6,6 +6,8 @@ const internalHost = process.env.TAURI_DEV_HOST || 'localhost'
 const nextConfig: NextConfig = {
   // Essential configuration for Tauri compatibility
   output: 'export',
+  // Silence workspace-root inference warning in monorepo
+  outputFileTracingRoot: __dirname,
   
   // Static export configuration
   trailingSlash: true,

@@ -3,10 +3,11 @@
 import { useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { Spinner } from '@/components/ui/spinner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { LogIn, AlertCircle } from 'lucide-react';
+import { LogIn, AlertCircle, RefreshCw } from 'lucide-react';
 
 type AuthGuardRenderProps = {
   isAuthenticated: boolean;
@@ -40,6 +41,16 @@ export function AuthGuard({
     user,
     status,
   } = useAuth();
+
+  const { initializeAuth, refreshToken } = useAuthStore();
+
+  // Initialize authentication state on component mount
+  useEffect(() => {
+    console.log('AuthGuard: Initializing authentication...');
+    initializeAuth().catch((error) => {
+      console.error('AuthGuard: Failed to initialize auth:', error);
+    });
+  }, [initializeAuth]);
 
   // Redirect to auth page if not authenticated and not loading
   useEffect(() => {
@@ -92,8 +103,25 @@ export function AuthGuard({
               <span>Try Login Again</span>
             </Button>
             <Button
-              onClick={() => router.push(redirectTo)}
+              onClick={async () => {
+                clearError();
+                try {
+                  await refreshToken();
+                  console.info('Token refreshed successfully');
+                } catch (error) {
+                  const msg = error instanceof Error ? error.message : 'Token refresh failed';
+                  console.error(msg);
+                }
+              }}
               variant="outline"
+              className="w-full flex items-center justify-center space-x-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              <span>Refresh Token</span>
+            </Button>
+            <Button
+              onClick={() => router.push(redirectTo)}
+              variant="ghost"
               className="w-full"
             >
               Go to Login Page

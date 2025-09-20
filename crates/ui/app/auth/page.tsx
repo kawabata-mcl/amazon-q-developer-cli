@@ -4,8 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/use-auth';
 import { AuthPanel } from '@/components/auth/auth-panel';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -18,9 +16,6 @@ export default function AuthPage() {
     }
   }, [isAuthenticated, router]);
 
-  const handleBackToChat = () => {
-    router.push('/chat');
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center p-4">
@@ -38,24 +33,6 @@ export default function AuthPage() {
         {/* Authentication Panel */}
         <AuthPanel />
 
-        {/* Back to Chat Button */}
-        <div className="text-center">
-          <Button
-            onClick={handleBackToChat}
-            variant="ghost"
-            className="flex items-center space-x-2 mx-auto"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back to Chat</span>
-          </Button>
-        </div>
-
-        {/* Footer */}
-        <div className="text-center text-xs text-gray-500 dark:text-gray-400">
-          <p>
-            By signing in, you agree to the Amazon Q Developer terms of service.
-          </p>
-        </div>
       </div>
     </div>
   );

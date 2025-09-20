@@ -1,21 +1,27 @@
 import '@testing-library/jest-dom'
+import matchers from '@testing-library/jest-dom/matchers'
+import { expect } from '@jest/globals'
+expect.extend(matchers)
 
 // jsdom polyfills for TextEncoder/TextDecoder
 import { TextEncoder, TextDecoder } from 'util'
 ;(global as unknown as { TextEncoder?: unknown }).TextEncoder = TextEncoder
 ;(global as unknown as { TextDecoder?: unknown }).TextDecoder = TextDecoder
 
-// Mock Next.js router
+// Mock Next.js router with a stable singleton instance so tests can assert calls reliably
+const __routerMock = {
+  push: jest.fn(),
+  replace: jest.fn(),
+  prefetch: jest.fn(),
+  back: jest.fn(),
+  forward: jest.fn(),
+  refresh: jest.fn(),
+}
+;(globalThis as unknown as { __routerMock?: typeof __routerMock }).__routerMock = __routerMock
+
 jest.mock('next/navigation', () => ({
   useRouter() {
-    return {
-      push: jest.fn(),
-      replace: jest.fn(),
-      prefetch: jest.fn(),
-      back: jest.fn(),
-      forward: jest.fn(),
-      refresh: jest.fn(),
-    }
+    return __routerMock
   },
   useSearchParams() {
     return new URLSearchParams()

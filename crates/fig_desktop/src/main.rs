@@ -54,6 +54,7 @@ async fn main() {
             auth::login,
             auth::logout,
             auth::get_auth_status,
+            auth::refresh_auth_token,
             // Chat commands
             chat::send_message,
             chat::send_message_stream,

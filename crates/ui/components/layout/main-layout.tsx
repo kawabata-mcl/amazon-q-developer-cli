@@ -12,6 +12,7 @@ export interface MainLayoutProps {
   connectionStatus?: 'connected' | 'disconnected' | 'connecting'
   onNewChat?: () => void
   onSettingsClick?: () => void
+  onLogoutClick?: () => void
   className?: string
 }
 
@@ -21,6 +22,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
   connectionStatus,
   onNewChat,
   onSettingsClick,
+  onLogoutClick,
   className
 }) => {
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -50,6 +52,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({
           title={title}
           onMenuToggle={handleMenuToggle}
           onSettingsClick={onSettingsClick}
+          onLogoutClick={onLogoutClick}
         />
 
         {/* Main content */}

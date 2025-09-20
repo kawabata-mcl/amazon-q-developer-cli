@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
-import { loginCommand, logoutCommand, getAuthStatusCommand } from '@/lib/tauri';
+import { loginCommand, logoutCommand, getAuthStatusCommand, refreshAuthTokenCommand, type LoginOptions } from '@/lib/tauri';
 import type { AuthState } from '@/types/auth';
 
 interface AuthStore extends AuthState {
   // Actions
-  login: () => Promise<void>;
+  login: (options?: LoginOptions) => Promise<void>;
   logout: () => Promise<void>;
   checkAuthStatus: () => Promise<void>;
+  refreshToken: () => Promise<void>;
+  initializeAuth: () => Promise<void>;
   clearError: () => void;
   setLoading: (loading: boolean) => void;
 }
@@ -21,11 +23,11 @@ export const useAuthStore = create<AuthStore>()(
       error: null,
 
       // Actions
-      login: async () => {
+      login: async (options?: LoginOptions) => {
         set({ isLoading: true, error: null });
         
         try {
-          const status = await loginCommand();
+          const status = await loginCommand(options);
           set({ 
             status,
             isLoading: false,
@@ -92,6 +94,92 @@ export const useAuthStore = create<AuthStore>()(
 
       clearError: () => {
         set({ error: null });
+      },
+
+      refreshToken: async () => {
+        console.log('=== Starting token refresh ===');
+        set({ isLoading: true, error: null });
+        
+        try {
+          console.log('Calling refreshAuthTokenCommand...');
+          const status = await refreshAuthTokenCommand();
+          console.log('Token refresh result:', status);
+          
+          set({ 
+            status,
+            isLoading: false,
+            error: null 
+          });
+          
+          console.log('=== Token refresh completed successfully ===');
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Token refresh failed';
+          console.error('Token refresh failed:', errorMessage);
+          
+          set({ 
+            status: { type: 'Error', message: errorMessage },
+            isLoading: false,
+            error: errorMessage
+          });
+          
+          console.log('=== Token refresh completed with error ===');
+        }
+      },
+
+      initializeAuth: async () => {
+        console.log('=== Initializing authentication state ===');
+        set({ isLoading: true, error: null });
+        
+        try {
+          // First, try to get current auth status (includes persistent state restoration)
+          console.log('Checking initial auth status...');
+          const status = await getAuthStatusCommand();
+          console.log('Initial auth status:', status);
+          
+          // Validate status object
+          if (!status || typeof status !== 'object' || !status.type) {
+            console.warn('Invalid auth status received, defaulting to NotAuthenticated');
+            set({ 
+              status: { type: 'NotAuthenticated' },
+              isLoading: false,
+              error: null 
+            });
+            return;
+          }
+          
+          set({ 
+            status,
+            isLoading: false,
+            error: null 
+          });
+          
+          // If authenticated, periodically refresh token
+          if (status.type === 'Authenticated') {
+            console.log('User is authenticated, setting up token refresh timer');
+            // Set up periodic token refresh (every 30 minutes)
+            setInterval(async () => {
+              try {
+                console.log('Performing periodic token refresh...');
+                await refreshAuthTokenCommand();
+              } catch (error) {
+                console.warn('Periodic token refresh failed:', error);
+              }
+            }, 30 * 60 * 1000); // 30 minutes
+          }
+          
+          console.log('=== Authentication initialization completed successfully ===');
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Failed to initialize auth';
+          console.error('Auth initialization failed:', errorMessage);
+          
+          set({ 
+            status: { type: 'NotAuthenticated' },
+            isLoading: false,
+            error: errorMessage
+          });
+          
+          console.log('=== Authentication initialization completed with error ===');
+        }
       },
 
       setLoading: (loading: boolean) => {

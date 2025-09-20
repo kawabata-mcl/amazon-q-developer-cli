@@ -2,34 +2,23 @@
  * React hook for error handling
  */
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { 
   AppError, 
-  ErrorType, 
-  errorHandler, 
   handleError, 
-  handleAsyncError,
-  getUserFriendlyMessage,
-  getErrorSeverity,
-  ErrorSeverity
+  handleAsyncError
 } from '@/lib/error-handler';
-import { useNotificationStore } from '@/stores/notification-store';
 import { TimeoutError, NetworkError } from '@/types/common';
 
 export interface UseErrorHandlerOptions {
-  showNotifications?: boolean;
-  logErrors?: boolean;
   context?: Record<string, unknown>;
-  enableRetry?: boolean;
-  maxRetries?: number;
-  retryDelay?: number;
 }
 
 export interface UseErrorHandlerReturn {
   handleError: (error: unknown, context?: Record<string, unknown>) => AppError;
   handleAsyncError: <T>(promise: Promise<T>, context?: Record<string, unknown>) => Promise<T>;
-  handleTimeoutError: (error: TimeoutError, retryFn?: () => Promise<void>) => void;
-  handleNetworkError: (error: NetworkError, retryFn?: () => Promise<void>) => void;
+  handleTimeoutError: (error: TimeoutError) => void;
+  handleNetworkError: (error: NetworkError) => void;
   clearErrors: () => void;
   lastError: AppError | null;
   retryCount: number;
@@ -37,47 +26,11 @@ export interface UseErrorHandlerReturn {
 
 export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorHandlerReturn {
   const {
-    showNotifications = true,
-    logErrors = true,
     context: defaultContext,
-    enableRetry = true,
-    maxRetries = 3,
-    retryDelay = 1000
   } = options;
   
-  const { addNotification } = useNotificationStore();
   const lastErrorRef = useRef<AppError | null>(null);
   const retryCountRef = useRef<number>(0);
-  
-  // Error listener for notifications
-  useEffect(() => {
-    if (!showNotifications) return;
-    
-    const unsubscribe = errorHandler.addErrorListener((error: AppError) => {
-      lastErrorRef.current = error;
-      
-      const severity = getErrorSeverity(error);
-      const userMessage = getUserFriendlyMessage(error);
-      
-      // Map error severity to notification type
-      let notificationType: 'error' | 'warning' | 'info' = 'error';
-      if (severity === ErrorSeverity.LOW) {
-        notificationType = 'info';
-      } else if (severity === ErrorSeverity.MEDIUM) {
-        notificationType = 'warning';
-      }
-      
-      addNotification({
-        type: notificationType,
-        title: getErrorTitle(error.type),
-        message: userMessage,
-        duration: getNotificationDuration(severity),
-        actions: getErrorActions(error)
-      });
-    });
-    
-    return unsubscribe;
-  }, [showNotifications, addNotification]);
   
   const handleErrorCallback = useCallback((
     error: unknown, 
@@ -96,74 +49,16 @@ export function useErrorHandler(options: UseErrorHandlerOptions = {}): UseErrorH
   }, [defaultContext]);
   
   const handleTimeoutError = useCallback((
-    error: TimeoutError, 
-    retryFn?: () => Promise<void>
+    error: TimeoutError
   ) => {
     console.error('Timeout error:', error);
-    
-    if (showNotifications) {
-      const canRetry = enableRetry && retryFn && retryCountRef.current < maxRetries;
-      
-      addNotification({
-        type: 'error',
-        title: 'Network Timeout',
-        message: 'The request timed out. Please check your connection and try again.',
-        duration: 0, // Persistent for timeout errors
-        actions: canRetry ? [{
-          label: `Retry (${retryCountRef.current + 1}/${maxRetries})`,
-          action: async () => {
-            retryCountRef.current += 1;
-            try {
-              await new Promise(resolve => setTimeout(resolve, retryDelay));
-              await retryFn();
-              retryCountRef.current = 0; // Reset on success
-            } catch (retryError) {
-              if (retryError instanceof TimeoutError) {
-                handleTimeoutError(retryError, retryFn);
-              } else {
-                handleError(retryError);
-              }
-            }
-          }
-        }] : undefined
-      });
-    }
-  }, [showNotifications, enableRetry, maxRetries, retryDelay, addNotification]);
+  }, []);
 
   const handleNetworkError = useCallback((
-    error: NetworkError, 
-    retryFn?: () => Promise<void>
+    error: NetworkError
   ) => {
     console.error('Network error:', error);
-    
-    if (showNotifications) {
-      const canRetry = enableRetry && retryFn && retryCountRef.current < maxRetries;
-      
-      addNotification({
-        type: 'error',
-        title: 'Network Error',
-        message: 'Failed to connect to the server. Please check your internet connection.',
-        duration: 8000, // Auto-dismiss after 8 seconds
-        actions: canRetry ? [{
-          label: `Retry (${retryCountRef.current + 1}/${maxRetries})`,
-          action: async () => {
-            retryCountRef.current += 1;
-            try {
-              await new Promise(resolve => setTimeout(resolve, retryDelay));
-              await retryFn();
-              retryCountRef.current = 0; // Reset on success
-            } catch (retryError) {
-              if (retryError instanceof NetworkError) {
-                handleNetworkError(retryError, retryFn);
-              } else {
-                handleError(retryError);
-              }
-            }
-          }
-        }] : undefined
-      });
-    }
-  }, [showNotifications, enableRetry, maxRetries, retryDelay, addNotification]);
+  }, []);
 
   const clearErrors = useCallback(() => {
     lastErrorRef.current = null;

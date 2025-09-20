@@ -1,16 +1,22 @@
+use rand;
 use serde::{Deserialize, Serialize};
 /// Module that bridges existing CLI functionality with GUI
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::sync::broadcast;
 use tracing::{error, info, warn};
-use rand;
 
-use chat_cli::auth::builder_id::{BuilderIdToken, TokenType};
+use chat_cli::auth::builder_id::{
+    BuilderIdToken, PollCreateToken, TokenType, poll_create_token, start_device_authorization,
+};
+use chat_cli::auth::pkce::start_pkce_authorization;
 use chat_cli::auth::{is_logged_in, logout as cli_logout};
 use chat_cli::cli::Agent;
 use chat_cli::cli::chat::context::{ContextFilePath, ContextManager};
 use chat_cli::os::Os;
+use chat_cli::util::open::open_url_async;
+use chat_cli::util::system_info::is_remote;
+use std::time::Duration;
 
 /// CLI bridge implementation
 pub struct CliBridge {
@@ -18,6 +24,25 @@ pub struct CliBridge {
     context_manager: Arc<Mutex<ContextManager>>,
     // Reserved for future integration with chat-cli conversation management
     // conversation_states: Arc<Mutex<std::collections::HashMap<String, ConversationState>>>,
+}
+
+/// GUIから指定可能なログイン方式
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum GuiLoginMethod {
+    Pkce,
+    Device,
+}
+
+/// GUIから渡されるログインオプション
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct GuiLoginOptions {
+    /// 明示的に方式を指定（未指定なら環境・状況により自動選択）
+    pub method: Option<GuiLoginMethod>,
+    /// Identity Center を使用する場合の Start URL
+    pub start_url: Option<String>,
+    /// Identity Center を使用する場合の Region
+    pub region: Option<String>,
 }
 
 /// Authentication information
@@ -60,7 +85,7 @@ impl CliBridge {
     /// Create a new CLI bridge instance
     pub async fn new() -> Result<Self, CliBridgeError> {
         info!("Initializing CLI bridge...");
-        
+
         let os = Os::new()
             .await
             .map_err(|e| CliBridgeError::InternalError(format!("Failed to initialize OS: {}", e)))?;
@@ -71,7 +96,7 @@ impl CliBridge {
         match chat_cli::util::directories::database_path() {
             Ok(db_path) => {
                 info!("Database path: {}", db_path.display());
-                
+
                 // Check if database file exists
                 if db_path.exists() {
                     info!("Database file exists");
@@ -81,7 +106,7 @@ impl CliBridge {
             },
             Err(e) => {
                 error!("Failed to get database path: {}", e);
-            }
+            },
         }
 
         // Build a minimal Agent so we can construct ContextManager safely
@@ -99,7 +124,10 @@ impl CliBridge {
     }
 
     /// Execute login process
-    pub async fn execute_login(&self) -> Result<AuthInfo, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn execute_login(
+        &self,
+        options: Option<GuiLoginOptions>,
+    ) -> Result<AuthInfo, Box<dyn std::error::Error + Send + Sync>> {
         info!("Executing login process via CLI bridge");
 
         let mut os = self.os.lock().await;
@@ -110,11 +138,89 @@ impl CliBridge {
             return self.get_current_auth_info(&mut os).await;
         }
 
-        // GUI-driven login is not implemented here to avoid non-Send CLI flows.
-        // Prompt the caller to use the CLI to log in.
-        Err(Box::new(CliBridgeError::AuthenticationError(
-            "Login from GUI is not implemented. Please run `q login` in a terminal.".to_string(),
-        )))
+        // Identity Center の start_url/region をオプション優先で、なければ環境変数から取得
+        let (opt_method, opt_start_url, opt_region) = match options.clone() {
+            Some(o) => (o.method, o.start_url, o.region),
+            None => (None, None, None),
+        };
+        let idc_start_url = opt_start_url.or_else(|| std::env::var("AMAZON_Q_IDC_START_URL").ok());
+        let idc_region = opt_region.or_else(|| std::env::var("AMAZON_Q_IDC_REGION").ok());
+
+        // 方式の決定: 明示指定 > 自動（リモートでなければPKCE優先）
+        let prefer_pkce = match opt_method {
+            Some(GuiLoginMethod::Pkce) => true,
+            Some(GuiLoginMethod::Device) => false,
+            None => !is_remote(),
+        };
+
+        if prefer_pkce {
+            info!("Attempting PKCE authorization flow");
+            match start_pkce_authorization(idc_start_url.clone(), idc_region.clone()).await {
+                Ok((client, registration)) => {
+                    if let Err(err) = open_url_async(&registration.url).await {
+                        warn!("Failed to open browser automatically for PKCE: {}", err);
+                    }
+                    match registration.finish(&client, Some(&mut os.database)).await {
+                        Ok(()) => {
+                            info!("PKCE authorization complete");
+                            return self.get_current_auth_info(&mut os).await;
+                        },
+                        Err(e) => {
+                            error!("PKCE authorization failed: {}. Falling back to device code flow", e);
+                        },
+                    }
+                },
+                Err(e) => {
+                    warn!("PKCE initialization failed: {}. Falling back to device code flow", e);
+                },
+            }
+        } else {
+            info!("Remote environment detected — skipping PKCE and using device code");
+        }
+
+        // デバイスコードフロー（Builder ID 既定、IDCはenv指定時）
+        let device_auth = start_device_authorization(&os.database, idc_start_url.clone(), idc_region.clone())
+            .await
+            .map_err(|e| {
+                Box::new(CliBridgeError::AuthenticationError(e.to_string())) as Box<dyn std::error::Error + Send + Sync>
+            })?;
+
+        info!(
+            "Device auth started. user_code={}, verification_uri_complete={}",
+            device_auth.user_code, device_auth.verification_uri_complete
+        );
+
+        if let Err(err) = open_url_async(&device_auth.verification_uri_complete).await {
+            warn!(
+                "Failed to open browser automatically: {}. Ask user to open URL manually: {}",
+                err, device_auth.verification_uri_complete
+            );
+        }
+
+        loop {
+            match poll_create_token(
+                &os.database,
+                device_auth.device_code.clone(),
+                Some(device_auth.start_url.clone()),
+                Some(device_auth.region.clone()),
+            )
+            .await
+            {
+                PollCreateToken::Pending => {
+                    tokio::time::sleep(Duration::from_secs(device_auth.interval as u64)).await;
+                },
+                PollCreateToken::Complete => {
+                    info!("Device authorization complete");
+                    break;
+                },
+                PollCreateToken::Error(e) => {
+                    error!("Device authorization error: {}", e);
+                    return Err(Box::new(CliBridgeError::AuthenticationError(e.to_string())));
+                },
+            }
+        }
+
+        self.get_current_auth_info(&mut os).await
     }
 
     /// Execute logout process
@@ -326,8 +432,10 @@ impl CliBridge {
             info!("User appears to be logged in, retrieving auth info...");
             match self.get_current_auth_info(&mut os).await {
                 Ok(auth_info) => {
-                    info!("Successfully retrieved auth info: username={}, provider={}", 
-                          auth_info.username, auth_info.provider);
+                    info!(
+                        "Successfully retrieved auth info: username={}, provider={}",
+                        auth_info.username, auth_info.provider
+                    );
                     info!("=== CLI Bridge: Authentication check SUCCESSFUL ===");
                     Ok(Some(auth_info))
                 },
@@ -335,7 +443,7 @@ impl CliBridge {
                     error!("Failed to get auth info despite being logged in: {}", e);
                     info!("=== CLI Bridge: Authentication check FAILED (auth info error) ===");
                     Err(e)
-                }
+                },
             }
         } else {
             info!("User is not logged in according to is_logged_in()");

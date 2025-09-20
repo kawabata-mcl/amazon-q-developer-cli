@@ -280,7 +280,7 @@ export function MessageInput({
                     : placeholder
               }
               disabled={isInputDisabled}
-              className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px] disabled:opacity-50"
+              className="w-full p-3 border-2 border-gray-400 dark:border-gray-500 rounded-lg resize-none focus:ring-2 focus:ring-blue-600 focus:border-blue-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px] disabled:opacity-50"
               rows={1}
               data-testid="message-input"
             />

@@ -10,26 +10,29 @@ export function useAuth() {
     login,
     logout,
     checkAuthStatus,
+    refreshToken,
+    initializeAuth,
     clearError,
     setLoading,
   } = useAuthStore();
 
-  // Check authentication status on mount
+  // Initialize authentication on mount
   useEffect(() => {
     let mounted = true;
     
-    const performAuthCheck = async () => {
+    const performAuthInit = async () => {
       if (mounted && status === null) {
-        await checkAuthStatus();
+        console.log('useAuth: Initializing authentication...');
+        await initializeAuth();
       }
     };
     
-    performAuthCheck();
+    performAuthInit();
     
     return () => {
       mounted = false;
     };
-  }, []); // Remove checkAuthStatus from dependencies to prevent infinite loop
+  }, []); // Empty dependency array to run only once on mount
 
   // Helper functions
   const isAuthenticated = status?.type === 'Authenticated';
@@ -68,6 +71,8 @@ export function useAuth() {
     login,
     logout,
     checkAuthStatus,
+    refreshToken,
+    initializeAuth,
     clearError,
     setLoading,
   };

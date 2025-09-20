@@ -81,11 +81,6 @@ button:active:not(:disabled) {
   animation: slideInFromBottom 0.3s ease-out;
 }
 
-/* Improved notification styles */
-.notification-toast {
-  backdrop-filter: blur(8px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
 
 /* Enhanced file drop zone */
 .file-drop-zone {

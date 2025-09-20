@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { useAuthStore } from '@/stores/auth-store';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
-import { AlertCircle, CheckCircle, LogIn, LogOut, User } from 'lucide-react';
+import { AlertCircle, CheckCircle, LogIn, LogOut, User, RefreshCw } from 'lucide-react';
 
 interface AuthPanelProps {
   className?: string;
@@ -23,6 +24,13 @@ export function AuthPanel({ className }: AuthPanelProps) {
     clearError,
   } = useAuth();
 
+  // Local UI state for login options
+  const [authMethod, setAuthMethod] = useState<'pkce' | 'device'>('pkce');
+  const [startUrl, setStartUrl] = useState<string>('');
+  const [region, setRegion] = useState<string>('');
+
+  const { refreshToken } = useAuthStore();
+
   // Clear error when component unmounts or auth status changes
   useEffect(() => {
     return () => {
@@ -34,12 +42,38 @@ export function AuthPanel({ className }: AuthPanelProps) {
 
   const handleLogin = async () => {
     clearError();
-    await login();
+    const options = authMethod === 'pkce'
+      ? {
+          method: 'pkce' as const,
+          start_url: startUrl || undefined,
+          region: region || undefined,
+        }
+      : {
+          method: 'device' as const,
+          start_url: startUrl || undefined,
+          region: region || undefined,
+        };
+    await login(options);
   };
 
   const handleLogout = async () => {
     clearError();
-    await logout();
+    try {
+      await logout();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Logout failed';
+      console.error(message);
+    }
+  };
+
+  const handleRefreshToken = async () => {
+    clearError();
+    try {
+      await refreshToken();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Token refresh failed';
+      console.error(message);
+    }
   };
 
   return (
@@ -49,18 +83,13 @@ export function AuthPanel({ className }: AuthPanelProps) {
         <div className="flex items-center space-x-2">
           <User className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-            Authentication
+            Sign in
           </h2>
         </div>
 
         {/* Authentication Status */}
         <div className="space-y-3">
-          {isAuthenticating && (
-            <div className="flex items-center space-x-2 text-blue-600 dark:text-blue-400" data-testid="auth-loading">
-              <Spinner className="h-4 w-4" />
-              <span className="text-sm">Authenticating...</span>
-            </div>
-          )}
+          {/* Removed authenticating indicator per requirements */}
 
           {isAuthenticated && user && (
             <div className="space-y-2" data-testid="auth-success">
@@ -77,12 +106,6 @@ export function AuthPanel({ className }: AuthPanelProps) {
             </div>
           )}
 
-          {!isAuthenticated && !isAuthenticating && (
-            <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400" data-testid="auth-status">
-              <AlertCircle className="h-4 w-4" />
-              <span className="text-sm">Not authenticated</span>
-            </div>
-          )}
 
           {hasError && errorMessage && (
             <div className="bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-md p-3" data-testid="auth-error">
@@ -97,14 +120,60 @@ export function AuthPanel({ className }: AuthPanelProps) {
           )}
         </div>
 
+        {/* Method Selection & Inputs */}
+        {!isAuthenticated && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-sm text-gray-700 dark:text-gray-300">Method</label>
+              <select
+                className="text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                value={authMethod}
+                onChange={(e) => setAuthMethod(e.target.value as 'pkce' | 'device')}
+                data-testid="auth-method-select"
+              >
+                <option value="pkce">Identity Center</option>
+                <option value="device">Builder ID</option>
+              </select>
+            </div>
+            {authMethod === 'pkce' && (
+              <div className="grid grid-cols-1 gap-2">
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Start URL</label>
+                  <input
+                    className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                    placeholder="https://your-domain.awsapps.com/start"
+                    value={startUrl}
+                    onChange={(e) => setStartUrl(e.target.value)}
+                    data-testid="start-url-input"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1">Region</label>
+                  <input
+                    className="w-full text-sm rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-2 py-1"
+                    placeholder="us-east-1"
+                    value={region}
+                    onChange={(e) => setRegion(e.target.value)}
+                    data-testid="region-input"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {!isAuthenticated ? (
             <Button
               onClick={handleLogin}
-              disabled={isAuthenticating}
-              className="flex items-center space-x-2"
-            data-testid="login-button"
+              disabled={
+                isAuthenticating || (authMethod === 'pkce' && (!startUrl.trim() || !region.trim()))
+              }
+              className="flex items-center space-x-2 cursor-pointer"
+              data-testid="login-button"
             >
               {isAuthenticating ? (
                 <Spinner className="h-4 w-4" />
@@ -114,20 +183,34 @@ export function AuthPanel({ className }: AuthPanelProps) {
               <span>{isAuthenticating ? 'Logging in...' : 'Login'}</span>
             </Button>
           ) : (
-            <Button
-              onClick={handleLogout}
-              disabled={isAuthenticating}
-              variant="outline"
-              className="flex items-center space-x-2"
-            data-testid="logout-button"
-            >
-              {isAuthenticating ? (
-                <Spinner className="h-4 w-4" />
-              ) : (
-                <LogOut className="h-4 w-4" />
-              )}
-              <span>{isAuthenticating ? 'Logging out...' : 'Logout'}</span>
-            </Button>
+            <>
+              <Button
+                onClick={handleLogout}
+                disabled={isAuthenticating}
+                variant="outline"
+                className="flex items-center space-x-2"
+                data-testid="logout-button"
+              >
+                {isAuthenticating ? (
+                  <Spinner className="h-4 w-4" />
+                ) : (
+                  <LogOut className="h-4 w-4" />
+                )}
+                <span>{isAuthenticating ? 'Logging out...' : 'Logout'}</span>
+              </Button>
+              
+              <Button
+                onClick={handleRefreshToken}
+                disabled={isAuthenticating}
+                variant="ghost"
+                size="sm"
+                className="flex items-center space-x-2"
+                data-testid="refresh-token-button"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Refresh Token</span>
+              </Button>
+            </>
           )}
 
           {hasError && (
@@ -136,6 +219,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
               variant="ghost"
               size="sm"
               className="text-gray-600 dark:text-gray-400"
+              data-testid="clear-error-button"
             >
               Clear Error
             </Button>
@@ -146,8 +230,7 @@ export function AuthPanel({ className }: AuthPanelProps) {
         {!isAuthenticated && !isAuthenticating && (
           <div className="text-xs text-gray-500 dark:text-gray-400 mt-4">
             <p>
-              Click &quot;Login&quot; to authenticate with Amazon Q Developer. 
-              This will open your default browser for the authentication process.
+              Choose Identity Center or Builder ID to sign in.
             </p>
           </div>
         )}

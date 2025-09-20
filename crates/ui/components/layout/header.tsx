@@ -3,14 +3,13 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui"
-import { Menu, Settings, User, MessageSquare } from "lucide-react"
-import { NotificationBell } from "@/components/ui/notification-container"
-import { NotificationPanel } from "@/components/ui/notification-panel"
+import { Menu, Settings, User, MessageSquare, LogOut } from "lucide-react"
 
 export interface HeaderProps {
   title?: string
   onMenuToggle?: () => void
   onSettingsClick?: () => void
+  onLogoutClick?: () => void
   className?: string
 }
 
@@ -18,17 +17,9 @@ const Header: React.FC<HeaderProps> = ({
   title = "Amazon Q",
   onMenuToggle,
   onSettingsClick,
+  onLogoutClick,
   className
 }) => {
-  const [isNotificationPanelOpen, setIsNotificationPanelOpen] = React.useState(false);
-
-  const handleNotificationClick = () => {
-    setIsNotificationPanelOpen(true);
-  };
-
-  const handleNotificationPanelClose = () => {
-    setIsNotificationPanelOpen(false);
-  };
 
   return (
     <header
@@ -61,36 +52,56 @@ const Header: React.FC<HeaderProps> = ({
 
       {/* Right section */}
       <div className="flex items-center gap-2">
-        <NotificationBell 
-          onClick={handleNotificationClick}
-          className="p-2"
-        />
         
         {onSettingsClick && (
+          <div className="relative group">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onSettingsClick}
+              aria-label="Settings"
+              title="Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </Button>
+            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+              Settings
+            </span>
+          </div>
+        )}
+        
+        {onLogoutClick && (
+          <div className="relative group">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogoutClick}
+              aria-label="Logout"
+              data-testid="header-logout-button"
+              title="Sign out"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+            <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+              Sign out
+            </span>
+          </div>
+        )}
+        
+        <div className="relative group">
           <Button
             variant="ghost"
             size="icon"
-            onClick={onSettingsClick}
-            aria-label="Settings"
+            aria-label="User profile"
+            title="User profile"
           >
-            <Settings className="h-5 w-5" />
+            <User className="h-5 w-5" />
           </Button>
-        )}
-        
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="User profile"
-        >
-          <User className="h-5 w-5" />
-        </Button>
+          <span className="pointer-events-none absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-black/80 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+            User profile
+          </span>
+        </div>
       </div>
-      
-      {/* Notification Panel */}
-      <NotificationPanel
-        isOpen={isNotificationPanelOpen}
-        onClose={handleNotificationPanelClose}
-      />
     </header>
   )
 }

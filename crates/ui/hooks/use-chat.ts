@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useRef } from 'react';
 import { useChatStore } from '@/stores/chat-store';
 import { useStableCallback, useDebouncedCallback } from '@/lib/optimization-utils';
-import { useNotificationActions, notificationHelpers } from '@/stores/notification-store';
+// Notifications removed
 import { TimeoutError, NetworkError } from '@/types/common';
 import type { ChatError, ConversationStats, ChatConversation } from '@/types/chat';
 
@@ -14,7 +14,7 @@ export function useChat() {
   const [sendError, setSendError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const abortedByTimeoutRef = useRef<boolean>(false);
-  const { error: notificationError, success: notificationSuccess } = useNotificationActions();
+  // Notifications removed
   // NOTE:
   // We intentionally use a single call to the zustand hook instead of a custom selector
   // because unit tests mock the store with a plain function that returns a state object
@@ -100,11 +100,7 @@ export function useChat() {
         await sendMessage(message);
         clearTimeout(timeoutId);
         
-        // Success notification
-        notificationSuccess(
-          'Message sent',
-          'Your message has been sent successfully'
-        );
+        // Notifications removed
       } catch (error) {
         clearTimeout(timeoutId);
         
@@ -116,7 +112,6 @@ export function useChat() {
           if (abortedByTimeoutRef.current) {
             errorMessage = 'Network timeout - please try again';
             setSendError(errorMessage);
-            notificationHelpers.networkTimeout(() => handleSendMessage(message));
             throw new TimeoutError(errorMessage);
           } else {
             // Manual cancellation: set error and do not throw
@@ -127,14 +122,10 @@ export function useChat() {
           if (error.message.includes('network') || error.message.includes('fetch')) {
             errorMessage = 'Network connection failed. Please check your internet connection.';
             setSendError(errorMessage);
-            notificationHelpers.networkError(() => handleSendMessage(message));
             throw new NetworkError(errorMessage);
           } else {
             errorMessage = error.message || 'An unexpected error occurred';
             setSendError(errorMessage);
-            notificationHelpers.sendMessageFailed(
-              canRetry ? () => handleSendMessage(message) : undefined
-            );
           }
         }
         // If we get here and haven't thrown, rethrow original error to preserve behavior
@@ -146,7 +137,7 @@ export function useChat() {
       setIsSending(false);
       abortControllerRef.current = null;
     }
-  }, [sendMessage, isSending, notificationError, notificationSuccess]);
+  }, [sendMessage, isSending]);
 
   // Optimized handlers with stable callbacks
   const handleRetryMessage = useStableCallback(async (messageId: string) => {

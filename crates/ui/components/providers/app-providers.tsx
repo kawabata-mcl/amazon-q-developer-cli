@@ -6,7 +6,6 @@ import { useWindowState } from '@/hooks/use-window-state';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useSettings } from '@/hooks/use-settings';
 import { useMacOSIntegration } from '@/hooks/use-macos-integration';
-import { NotificationContainer } from '@/components/ui/notification-container';
 
 
 interface AppProvidersProps {
@@ -22,7 +21,6 @@ export function AppProviders({ children }: AppProvidersProps) {
             <KeyboardShortcutProvider>
               <ErrorHandlerProvider>
                 {children}
-                <NotificationContainer position="top-right" />
               </ErrorHandlerProvider>
             </KeyboardShortcutProvider>
           </WindowStateProvider>

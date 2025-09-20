@@ -5,10 +5,17 @@ import type { AppSettings } from '@/types/settings';
 import { handleAsyncError } from '@/lib/error-handler';
 
 // Authentication commands
-export async function loginCommand(): Promise<AuthStatus> {
+export type LoginMethod = 'pkce' | 'device';
+export interface LoginOptions {
+  method?: LoginMethod;
+  start_url?: string;
+  region?: string;
+}
+
+export async function loginCommand(options?: LoginOptions): Promise<AuthStatus> {
   return await handleAsyncError(
-    safeInvoke<AuthStatus>('login'),
-    { command: 'login', component: 'auth' }
+    safeInvoke<AuthStatus>('login', options ? { options } : undefined),
+    { command: 'login', component: 'auth', options }
   );
 }
 
@@ -23,6 +30,13 @@ export async function getAuthStatusCommand(): Promise<AuthStatus> {
   return await handleAsyncError(
     safeInvoke('get_auth_status'),
     { command: 'get_auth_status', component: 'auth' }
+  );
+}
+
+export async function refreshAuthTokenCommand(): Promise<AuthStatus> {
+  return await handleAsyncError(
+    safeInvoke('refresh_auth_token'),
+    { command: 'refresh_auth_token', component: 'auth' }
   );
 }
 
