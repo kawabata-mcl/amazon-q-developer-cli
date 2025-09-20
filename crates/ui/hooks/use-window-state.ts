@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from './use-settings';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
+import * as windowApi from '@tauri-apps/api/window';
 
 async function getAppWindow() {
   if (typeof window === 'undefined') return null;
@@ -71,9 +72,43 @@ export function useWindowState() {
     };
   }, [rememberPosition]);
 
+  const applyWindowSettings = async (): Promise<void> => {
+    try {
+      const appWindow = (windowApi as unknown as { appWindow: {
+        setSize: (size: { width: number; height: number }) => Promise<void>;
+        setPosition: (pos: { x: number; y: number }) => Promise<void>;
+        maximize: () => Promise<void>;
+        unmaximize: () => Promise<void>;
+        setAlwaysOnTop: (v: boolean) => Promise<void>;
+      }}).appWindow;
+      const { width, height, x, y, maximized, alwaysOnTop } = settings.window as {
+        width?: number;
+        height?: number;
+        x?: number;
+        y?: number;
+        maximized?: boolean;
+        alwaysOnTop?: boolean;
+      };
+      if (width && height) {
+        await appWindow.setSize({ width, height });
+      }
+      if (rememberPosition && typeof x === 'number' && typeof y === 'number') {
+        await appWindow.setPosition({ x, y });
+      }
+      if (maximized) {
+        await appWindow.maximize();
+      } else {
+        await appWindow.unmaximize();
+      }
+      await appWindow.setAlwaysOnTop(!!alwaysOnTop);
+    } catch (error) {
+      console.error('Failed to apply window settings:', error);
+    }
+  };
+
   return {
     saveWindowState,
     getCurrentWindowState,
-    // フロントではウィンドウ操作を行わない
+    applyWindowSettings,
   };
 }

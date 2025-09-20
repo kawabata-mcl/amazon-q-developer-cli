@@ -5,14 +5,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat('en-US', {
+export function formatDate(
+  date: Date,
+  options?: Intl.DateTimeFormatOptions,
+  includeTime?: boolean
+): string {
+  // Guard invalid dates
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const baseOptions: Intl.DateTimeFormatOptions = {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  };
+  const dateOptions = { ...baseOptions, ...(options ?? {}) };
+
+  const datePart = new Intl.DateTimeFormat('en-US', dateOptions).format(date);
+
+  if (!includeTime) {
+    return datePart;
+  }
+
+  // Stable time rendering across timezones: format in UTC as HH:mm
+  const pad = (n: number) => (n < 10 ? `0${n}` : `${n}`);
+  const timePart = `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+  return `${datePart}, ${timePart}`;
 }
 
 export function formatRelativeTime(date: Date): string {
