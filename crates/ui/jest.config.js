@@ -11,6 +11,7 @@ const customJestConfig = {
   testEnvironment: 'jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^@tauri-apps/api/tauri$': '@tauri-apps/api/core',
   },
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',

@@ -28,10 +28,11 @@ jest.mock('next/navigation', () => ({
 // Bring in default settings for Tauri mocks
 import { DEFAULT_SETTINGS } from '@/types/settings'
 
-// Mock Tauri API: provide sane defaults for commands used in tests
-jest.mock('@tauri-apps/api/tauri', () => ({
+// Mock Tauri API (core): provide sane defaults for commands used in tests
+jest.mock('@tauri-apps/api/core', () => ({
   invoke: jest.fn(async (cmd: string) => {
     switch (cmd) {
+      // Auth
       case 'get_auth_status':
         return { type: 'NotAuthenticated' };
       case 'login':
@@ -46,6 +47,15 @@ jest.mock('@tauri-apps/api/tauri', () => ({
         return [];
       case 'get_all_conversations':
         return [];
+      // Chat stats
+      case 'get_conversation_stats':
+        return {
+          total_conversations: 25,
+          total_messages: 150,
+          conversations_today: 3,
+          conversations_this_week: 8,
+          conversations_this_month: 15,
+        };
       // File operations
       case 'read_file_content':
         return { path: '/tmp/mock.txt', content: 'mock', size: 4, mime_type: 'text/plain' };
@@ -70,6 +80,18 @@ jest.mock('@tauri-apps/api/tauri', () => ({
         return undefined;
       case 'reset_app_settings':
         return undefined;
+      // Window state
+      case 'get_window_state':
+        return { width: 1280, height: 720, x: 100, y: 80, maximized: false, alwaysOnTop: false };
+      case 'save_window_state':
+        return undefined;
+      // macOS integration fallbacks
+      case 'get_system_theme':
+        return { Light: null };
+      case 'get_macos_system_info':
+        return { theme: { Light: null }, system_version: '14.0' };
+      case 'is_voice_over_enabled':
+        return false;
       default:
         return undefined;
     }
@@ -95,6 +117,14 @@ jest.mock('@tauri-apps/api/window', () => ({
     onResized: jest.fn(async () => () => {}),
     onMoved: jest.fn(async () => () => {}),
   },
+}))
+
+// Mock webviewWindow API to avoid evaluating real module in JSDOM
+jest.mock('@tauri-apps/api/webviewWindow', () => ({
+  getCurrentWebviewWindow: jest.fn(() => ({
+    onResized: jest.fn(async () => () => {}),
+    onMoved: jest.fn(async () => () => {}),
+  })),
 }))
 
 // Mock our tauri wrapper module so tests can override with .mockResolvedValue

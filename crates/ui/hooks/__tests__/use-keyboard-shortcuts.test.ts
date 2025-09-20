@@ -3,7 +3,15 @@ import { renderHook, act } from '@testing-library/react';
 
 jest.useFakeTimers();
 
-import { invoke } from '@tauri-apps/api/core';
+jest.mock('@/lib/tauri-env', () => {
+  const actual = jest.requireActual('@/lib/tauri-env');
+  return {
+    __esModule: true,
+    ...actual,
+    safeInvoke: jest.fn().mockResolvedValue(undefined),
+  };
+});
+import * as tauriEnv from '@/lib/tauri-env';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { useKeyboardShortcuts } = require('../use-keyboard-shortcuts');
@@ -24,11 +32,14 @@ jest.mock('@/stores/chat-store', () => {
 });
 
 describe('useKeyboardShortcuts', () => {
-  const mockInvoke = invoke as unknown as jest.Mock;
+  let mockSafeInvoke: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     useSettingsStore.setState({ settings: DEFAULT_SETTINGS, isLoading: false, error: null });
+    const mocked = jest.requireMock('@/lib/tauri-env') as { safeInvoke: jest.Mock };
+    mockSafeInvoke = mocked.safeInvoke;
+    mockSafeInvoke.mockResolvedValue(undefined);
   });
 
   test('Shortcut trigger fires default action (toggle-sidebar event)', async () => {
@@ -42,8 +53,11 @@ describe('useKeyboardShortcuts', () => {
     const event = new KeyboardEvent('keydown', {
       key: 'B',
       metaKey: true,
+      shiftKey: true, // default is Cmd+Shift+S; use B to test toggle-sidebar mapping? use S
     });
-    document.dispatchEvent(event);
+    // toggle-sidebar は Cmd+Shift+S なので正しいキーで発火
+    const event2 = new KeyboardEvent('keydown', { key: 'S', metaKey: true, shiftKey: true });
+    document.dispatchEvent(event2);
 
     expect(handler).toHaveBeenCalled();
   });
@@ -60,27 +74,26 @@ describe('useKeyboardShortcuts', () => {
       },
     }));
 
-    const unregisterCallsBefore = mockInvoke.mock.calls.length;
+    const unregisterCallsBefore = mockSafeInvoke.mock.calls.length;
     const { unmount } = renderHook(() => useKeyboardShortcuts({}));
 
     // register called for each shortcut
-    expect(mockInvoke).toHaveBeenCalledWith('register_global_shortcut', expect.any(Object));
+    const calls = (mockSafeInvoke.mock.calls as any[]).map((c: any[]) => c[0]);
+    expect(calls).toContain('register_global_shortcut');
 
     // unmount to unregister
     unmount();
-    const calls = mockInvoke.mock.calls.map((c: any[]) => c[0]);
-    expect(calls).toContain('unregister_global_shortcut');
-    expect(mockInvoke.mock.calls.length).toBeGreaterThan(unregisterCallsBefore);
+    const calls2 = (mockSafeInvoke.mock.calls as any[]).map((c: any[]) => c[0]);
+    expect(calls2).toContain('unregister_global_shortcut');
+    expect(mockSafeInvoke.mock.calls.length).toBeGreaterThan(unregisterCallsBefore);
   });
 
   test('Custom actions can be overridden', () => {
     const custom = jest.fn();
     renderHook(() => useKeyboardShortcuts({ 'search': custom }));
 
-    const event = new KeyboardEvent('keydown', {
-      key: 'F',
-      metaKey: true,
-    });
+    // デフォルトは Cmd+K だが、カスタムは search アクション上書きで Cmd+K をトリガー
+    const event = new KeyboardEvent('keydown', { key: 'K', metaKey: true });
     document.dispatchEvent(event);
 
     expect(custom).toHaveBeenCalled();

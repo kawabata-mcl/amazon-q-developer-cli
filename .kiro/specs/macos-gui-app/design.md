@@ -160,6 +160,18 @@ async fn get_conversation_history(
 async fn start_new_conversation(
     state: tauri::State<'_, AppState>,
 ) -> Result<String, String> // Returns conversation_id
+
+#[tauri::command]
+async fn save_message_auto(
+    state: tauri::State<'_, AppState>,
+    message: Message,
+    conversation_id: String,
+) -> Result<(), String>
+
+#[tauri::command]
+async fn get_all_conversations(
+    state: tauri::State<'_, AppState>,
+) -> Result<Vec<ConversationSummary>, String>
 ```
 
 #### Authentication Commands
@@ -178,6 +190,54 @@ async fn logout(
 async fn get_auth_status(
     state: tauri::State<'_, AppState>,
 ) -> Result<AuthStatus, String>
+
+#[tauri::command]
+async fn refresh_auth_token(
+    state: tauri::State<'_, AppState>,
+) -> Result<AuthStatus, String>
+```
+
+#### Settings Commands
+```rust
+#[tauri::command]
+async fn get_app_settings(
+    state: tauri::State<'_, AppState>,
+) -> Result<AppSettings, String>
+
+#[tauri::command]
+async fn save_app_settings(
+    state: tauri::State<'_, AppState>,
+    settings: AppSettings,
+) -> Result<(), String>
+
+#[tauri::command]
+async fn get_theme_settings(
+    state: tauri::State<'_, AppState>,
+) -> Result<ThemeSettings, String>
+
+#[tauri::command]
+async fn save_theme_settings(
+    state: tauri::State<'_, AppState>,
+    theme: ThemeSettings,
+) -> Result<(), String>
+```
+
+#### Error Logging Commands
+```rust
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorLogEntry {
+    pub error_type: String,
+    pub message: String,
+    pub stack_trace: Option<String>,
+    pub timestamp: OffsetDateTime,
+    pub user_agent: Option<String>,
+}
+
+#[tauri::command]
+async fn log_error(
+    state: tauri::State<'_, AppState>,
+    error: ErrorLogEntry,
+) -> Result<(), String>
 ```
 
 #### File Operations Commands
@@ -239,44 +299,79 @@ interface Message {
 #### React Hooks and Zustand Store Examples
 
 ```typescript
-// hooks/use-chat.ts
-import { useState } from 'react'
+// hooks/use-chat.ts - Enhanced with error handling
+import { useState, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/tauri'
 import { useChatStore } from '@/stores/chat-store'
+import { useNotificationStore } from '@/stores/notification-store'
 
 export function useChat() {
   const [isLoading, setIsLoading] = useState(false)
-  const { refreshConversation } = useChatStore()
+  const [error, setError] = useState<string | null>(null)
+  const { refreshConversation, saveMessageAuto } = useChatStore()
+  const { showNotification } = useNotificationStore()
   
-  const sendMessage = async (message: string) => {
+  const sendMessage = useCallback(async (message: string) => {
     setIsLoading(true)
+    setError(null)
+    
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30秒タイムアウト
+    
     try {
-      await invoke('send_message', { message })
+      // メッセージを即座に保存
+      await saveMessageAuto({
+        role: 'user',
+        content: message,
+        timestamp: new Date()
+      })
+      
+      const response = await invoke('send_message', { message })
+      
+      // 応答を保存
+      await saveMessageAuto({
+        role: 'assistant',
+        content: response.content,
+        timestamp: new Date()
+      })
+      
       await refreshConversation()
+      showNotification('Message sent successfully', 'success')
     } catch (error) {
-      console.error('Failed to send message:', error)
+      if (error.name === 'AbortError') {
+        setError('Network timeout - please try again')
+        showNotification('Network timeout - please try again', 'error')
+      } else {
+        setError(error.message || 'Failed to send message')
+        showNotification('Failed to send message', 'error')
+      }
     } finally {
+      clearTimeout(timeoutId)
       setIsLoading(false)
     }
-  }
+  }, [refreshConversation, saveMessageAuto, showNotification])
   
   return {
     isLoading,
-    sendMessage
+    error,
+    sendMessage,
+    clearError: () => setError(null)
   }
 }
 
-// stores/chat-store.ts (Zustand)
+// stores/chat-store.ts - Enhanced with auto-save
 import { create } from 'zustand'
 import { invoke } from '@tauri-apps/api/tauri'
-import type { Conversation, Message } from '@/types/chat'
+import type { Conversation, Message, ConversationSummary } from '@/types/chat'
 
 interface ChatState {
   currentConversation: Conversation | null
-  conversations: Conversation[]
+  conversations: ConversationSummary[]
   isLoading: boolean
   sendMessage: (message: string) => Promise<void>
+  saveMessageAuto: (message: Message) => Promise<void>
   refreshConversation: () => Promise<void>
+  loadConversations: () => Promise<void>
   setCurrentConversation: (conversation: Conversation | null) => void
 }
 
@@ -289,23 +384,214 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ isLoading: true })
     try {
       const response = await invoke('send_message', { message })
-      // 状態更新ロジック
       await get().refreshConversation()
     } catch (error) {
       console.error('Failed to send message:', error)
+      throw error
     } finally {
       set({ isLoading: false })
     }
   },
   
+  saveMessageAuto: async (message: Message) => {
+    const { currentConversation } = get()
+    if (currentConversation) {
+      await invoke('save_message_auto', {
+        message,
+        conversationId: currentConversation.id
+      })
+    }
+  },
+  
   refreshConversation: async () => {
-    // 会話履歴の更新ロジック
+    const { currentConversation } = get()
+    if (currentConversation) {
+      const messages = await invoke('get_conversation_history', {
+        conversationId: currentConversation.id
+      })
+      set({
+        currentConversation: {
+          ...currentConversation,
+          messages
+        }
+      })
+    }
+  },
+  
+  loadConversations: async () => {
+    const conversations = await invoke('get_all_conversations')
+    set({ conversations })
   },
   
   setCurrentConversation: (conversation) => {
     set({ currentConversation: conversation })
   }
 }))
+
+// stores/auth-store.ts - Authentication state management
+import { create } from 'zustand'
+import { invoke } from '@tauri-apps/api/tauri'
+import type { AuthStatus, User } from '@/types/auth'
+
+interface AuthState {
+  isAuthenticated: boolean
+  user: User | null
+  isLoading: boolean
+  error: string | null
+  login: () => Promise<void>
+  logout: () => Promise<void>
+  checkAuthStatus: () => Promise<void>
+  refreshToken: () => Promise<void>
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  isAuthenticated: false,
+  user: null,
+  isLoading: false,
+  error: null,
+  
+  login: async () => {
+    set({ isLoading: true, error: null })
+    try {
+      const authStatus = await invoke('login')
+      set({
+        isAuthenticated: authStatus.authenticated,
+        user: authStatus.user,
+        isLoading: false
+      })
+    } catch (error) {
+      set({
+        error: error.message || 'Login failed',
+        isLoading: false
+      })
+      throw error
+    }
+  },
+  
+  logout: async () => {
+    set({ isLoading: true })
+    try {
+      await invoke('logout')
+      set({
+        isAuthenticated: false,
+        user: null,
+        isLoading: false,
+        error: null
+      })
+    } catch (error) {
+      set({
+        error: error.message || 'Logout failed',
+        isLoading: false
+      })
+    }
+  },
+  
+  checkAuthStatus: async () => {
+    try {
+      const authStatus = await invoke('get_auth_status')
+      set({
+        isAuthenticated: authStatus.authenticated,
+        user: authStatus.user
+      })
+    } catch (error) {
+      set({
+        isAuthenticated: false,
+        user: null
+      })
+    }
+  },
+  
+  refreshToken: async () => {
+    try {
+      const authStatus = await invoke('refresh_auth_token')
+      set({
+        isAuthenticated: authStatus.authenticated,
+        user: authStatus.user
+      })
+    } catch (error) {
+      await get().logout()
+    }
+  }
+}))
+
+// hooks/use-theme.ts - Safe theme handling
+import { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/tauri'
+
+type ThemeMode = 'light' | 'dark' | 'system'
+
+interface ThemeState {
+  mode: ThemeMode
+  effectiveTheme: 'light' | 'dark'
+}
+
+export function useTheme() {
+  const [theme, setTheme] = useState<ThemeState>({
+    mode: 'system',
+    effectiveTheme: 'light'
+  })
+  
+  const [isLoading, setIsLoading] = useState(true)
+  
+  useEffect(() => {
+    loadTheme()
+  }, [])
+  
+  const loadTheme = async () => {
+    try {
+      const themeSettings = await invoke('get_theme_settings')
+      const effectiveTheme = getEffectiveTheme(themeSettings.mode)
+      setTheme({
+        mode: themeSettings.mode,
+        effectiveTheme
+      })
+    } catch (error) {
+      console.error('Failed to load theme:', error)
+      // Fallback to system theme
+      setTheme({
+        mode: 'system',
+        effectiveTheme: getSystemTheme()
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+  
+  const changeTheme = async (newMode: ThemeMode) => {
+    try {
+      await invoke('save_theme_settings', {
+        theme: { mode: newMode }
+      })
+      const effectiveTheme = getEffectiveTheme(newMode)
+      setTheme({
+        mode: newMode,
+        effectiveTheme
+      })
+    } catch (error) {
+      console.error('Failed to save theme:', error)
+    }
+  }
+  
+  const getEffectiveTheme = (mode: ThemeMode): 'light' | 'dark' => {
+    if (mode === 'system') {
+      return getSystemTheme()
+    }
+    return mode
+  }
+  
+  const getSystemTheme = (): 'light' | 'dark' => {
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    }
+    return 'light'
+  }
+  
+  return {
+    theme,
+    isLoading,
+    changeTheme
+  }
+}
 ```
 
 #### Next.js Configuration for Tauri
@@ -386,6 +672,8 @@ pub struct AppConfig {
     pub window_settings: WindowSettings,
     pub chat_settings: ChatSettings,
     pub appearance: AppearanceSettings,
+    pub language_settings: LanguageSettings,
+    pub auto_save_settings: AutoSaveSettings,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -395,6 +683,41 @@ pub struct WindowSettings {
     pub x: Option<i32>,
     pub y: Option<i32>,
     pub maximized: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ThemeSettings {
+    pub mode: ThemeMode,
+    pub custom_colors: Option<CustomColors>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ThemeMode {
+    Light,
+    Dark,
+    System,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LanguageSettings {
+    pub current_language: String,
+    pub supported_languages: Vec<String>,
+    pub auto_detect: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AutoSaveSettings {
+    pub enabled: bool,
+    pub save_on_send: bool,
+    pub save_on_receive: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConversationSummary {
+    pub id: String,
+    pub title: String,
+    pub last_message_at: OffsetDateTime,
+    pub message_count: usize,
 }
 ```
 
@@ -418,6 +741,12 @@ pub enum GuiError {
     
     #[error("Configuration error: {0}")]
     ConfigError(String),
+    
+    #[error("Theme configuration error: {0}")]
+    ThemeError(String),
+    
+    #[error("Timeout error: {0}")]
+    TimeoutError(String),
 }
 ```
 
@@ -426,6 +755,59 @@ pub enum GuiError {
 2. **User-Friendly Messages**: 技術的なエラーをユーザーフレンドリーなメッセージに変換
 3. **Error Recovery**: 可能な場合は自動復旧を試行
 4. **Logging**: 詳細なエラーログをファイルに記録
+5. **UI State Recovery**: エラー発生時のUI状態（ローディング等）を適切にリセット
+6. **Theme Fallback**: テーマ設定エラー時のデフォルト値への自動フォールバック
+
+### Network Error Handling
+```typescript
+// Frontend network error handling
+interface NetworkErrorHandler {
+  handleTimeout: (error: TimeoutError) => void;
+  resetSendingState: () => void;
+  enableRetry: () => void;
+  showErrorNotification: (message: string) => void;
+}
+
+// Message sending with timeout handling
+async function sendMessageWithTimeout(message: string): Promise<void> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒タイムアウト
+  
+  try {
+    await invoke('send_message', { message }, { signal: controller.signal });
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new TimeoutError('Network timeout - please try again');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+```
+
+### Theme Error Handling
+```typescript
+// Safe theme handling with fallback
+interface ThemeState {
+  current: 'light' | 'dark' | 'system';
+  isValid: boolean;
+}
+
+function safeGetTheme(): ThemeState {
+  try {
+    const stored = localStorage.getItem('theme');
+    if (stored && ['light', 'dark', 'system'].includes(stored)) {
+      return { current: stored as any, isValid: true };
+    }
+  } catch (error) {
+    console.error('Theme loading error:', error);
+  }
+  
+  // Fallback to system theme
+  return { current: 'system', isValid: false };
+}
+```
 
 ## Testing Strategy
 
@@ -940,6 +1322,101 @@ Next.jsをTauriで使用する際の重要な考慮事項：
 }
 ```
 
+## New Features Implementation
+
+### 1. Authentication System
+```typescript
+// Authentication state management
+interface AuthState {
+  isAuthenticated: boolean;
+  user: User | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+// Authentication commands
+interface AuthCommands {
+  login: () => Promise<void>;
+  logout: () => Promise<void>;
+  checkAuthStatus: () => Promise<AuthStatus>;
+  refreshToken: () => Promise<void>;
+}
+```
+
+### 2. Chat History Management
+```rust
+// Chat history persistence
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChatHistory {
+    pub conversations: Vec<Conversation>,
+    pub current_conversation_id: Option<String>,
+    pub auto_save_enabled: bool,
+}
+
+#[tauri::command]
+async fn save_conversation_auto(
+    state: tauri::State<'_, AppState>,
+    conversation: Conversation,
+) -> Result<(), String> {
+    // Auto-save implementation
+}
+```
+
+### 3. Multi-language Support
+```typescript
+// Internationalization system
+interface I18nConfig {
+  defaultLanguage: string;
+  supportedLanguages: string[];
+  translations: Record<string, Record<string, string>>;
+}
+
+// Language switching
+function useI18n() {
+  const [language, setLanguage] = useState('en');
+  
+  const t = useCallback((key: string) => {
+    return translations[language]?.[key] || key;
+  }, [language]);
+  
+  return { t, language, setLanguage };
+}
+```
+
+### 4. Auto-save System
+```typescript
+// Auto-save configuration
+interface AutoSaveConfig {
+  enabled: boolean;
+  saveOnSend: boolean;
+  saveOnReceive: boolean;
+  saveInterval: number; // milliseconds
+}
+
+// Auto-save implementation
+class AutoSaveManager {
+  private config: AutoSaveConfig;
+  
+  async saveMessage(message: Message): Promise<void> {
+    if (this.config.enabled) {
+      await invoke('save_message', { message });
+    }
+  }
+  
+  async saveOnSend(message: Message): Promise<void> {
+    if (this.config.saveOnSend) {
+      await this.saveMessage(message);
+    }
+  }
+  
+  async saveOnReceive(message: Message): Promise<void> {
+    if (this.config.saveOnReceive) {
+      await this.saveMessage(message);
+    }
+  }
+}
+```
+
 ## Future Enhancements
 
 ### 1. Advanced UI Features
@@ -950,7 +1427,7 @@ Next.jsをTauriで使用する際の重要な考慮事項：
 - Keyboard shortcuts customization
 
 ### 2. Cross-Platform Support
-- Windows版の開発（同じVue.jsコードベースを活用）
+- Windows版の開発（同じNext.jsコードベースを活用）
 - Linux版の開発
 - 統一されたUI/UX
 

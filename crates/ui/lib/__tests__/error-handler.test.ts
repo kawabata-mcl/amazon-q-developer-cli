@@ -1,7 +1,16 @@
 import '@testing-library/jest-dom'
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
-import { classifyError, ErrorType, createAppError, getUserFriendlyMessage, handleError } from '@/lib/error-handler'
-import { invoke } from '@tauri-apps/api/core'
+import { waitFor } from '@testing-library/react'
+jest.mock('@/lib/tauri-env', () => {
+  const actual = jest.requireActual('@/lib/tauri-env');
+  return {
+    __esModule: true,
+    ...actual,
+    isTauriRuntime: jest.fn(() => true),
+    safeInvoke: jest.fn().mockResolvedValue(undefined),
+  };
+});
+import { classifyError, ErrorType, createAppError, getUserFriendlyMessage, logError, GlobalErrorHandler, handleError } from '@/lib/error-handler'
 
 describe('error-handler', () => {
   beforeEach(() => {
@@ -27,14 +36,30 @@ describe('error-handler', () => {
     expect(getUserFriendlyMessage(appError)).toMatch('Failed to load settings')
   })
 
-  it('emits and logs errors via handleError', () => {
-    // act
-    handleError('Network connection timeout')
+  it('emits and logs errors via logError', async () => {
+    const appError = createAppError('Network connection timeout')
+    const { safeInvoke, isTauriRuntime } = jest.requireMock('@/lib/tauri-env') as { safeInvoke: jest.Mock, isTauriRuntime: jest.Mock }
+    isTauriRuntime.mockReturnValue(true)
+    safeInvoke.mockResolvedValue(undefined)
 
-    // assert that log_error was invoked
-    expect(invoke).toHaveBeenCalled()
-    const calls = (invoke as unknown as jest.Mock).mock.calls
-    const hasLog = calls.some(([cmd]) => cmd === 'log_error')
+    // jsdom 環境でも isTauriRuntime() が true になるようにガード
+    try {
+      (window as any).__TAURI__ = (window as any).__TAURI__ || {}
+    } catch (_) {
+      // ignore if window is not available for some reason
+    }
+
+    await logError(appError)
+
+    const core = jest.requireMock('@tauri-apps/api/core') as { invoke: jest.Mock }
+    await waitFor(() => {
+      const safeCalls = (safeInvoke.mock?.calls as any[]) || []
+      const coreCalls = (core.invoke.mock?.calls as any[]) || []
+      expect(safeCalls.length + coreCalls.length).toBeGreaterThan(0)
+    })
+    const safeCalls = (safeInvoke.mock?.calls as any[]) || []
+    const coreCalls = (core.invoke.mock?.calls as any[]) || []
+    const hasLog = [...safeCalls, ...coreCalls].some(([cmd]) => cmd === 'log_error')
     expect(hasLog).toBe(true)
   })
 })

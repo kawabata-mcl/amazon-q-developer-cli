@@ -232,3 +232,105 @@
     - UI の最終調整とポリッシュ
     - ドキュメントの作成
     - _Requirements: 全要件_
+
+- [ ] 16. ネットワークエラーハンドリングの修正
+
+  - [ ] 16.1 送信ボタンのローディング状態管理の修正
+
+    - use-chat.ts フックでのタイムアウト制御実装（AbortController使用）
+    - message-input.tsx でのローディング状態リセット機能追加
+    - エラー発生時の送信ボタン状態復旧機能実装
+    - 再送信ボタンの UI コンポーネント作成
+    - _Requirements: 9.1, 9.2, 9.3_
+
+  - [ ] 16.2 タイムアウトエラーハンドリングの強化
+    - TimeoutError 型定義の追加（types/common.ts）
+    - エラーハンドリング用のカスタムフック作成（use-error-handler.ts）
+    - 通知システムとの統合（notification-store.ts）
+    - ネットワークエラー時のユーザーフレンドリーメッセージ表示
+    - _Requirements: 9.1, 9.2, 9.3_
+
+- [ ] 17. 認証機能の実装
+
+  - [ ] 17.1 Rust バックエンドの認証コマンド実装
+
+    - commands/auth.rs での login、logout、get_auth_status コマンド実装
+    - 既存 chat-cli の認証機能との統合
+    - 認証状態の永続化（SQLite データベース使用）
+    - 認証トークンの安全な管理とリフレッシュ機能
+    - _Requirements: 10.1, 10.3_
+
+  - [ ] 17.2 フロントエンド認証 UI の実装
+    - auth-store.ts での認証状態管理実装
+    - auth-panel.tsx でのログイン/ログアウト UI 作成
+    - auth-guard.tsx での認証保護コンポーネント実装
+    - 認証エラー時のエラーハンドリングと通知表示
+    - _Requirements: 10.1, 10.2, 10.3_
+
+- [ ] 18. チャット履歴機能の実装
+
+  - [ ] 18.1 バックエンドの履歴管理機能実装
+
+    - commands/chat.rs での save_message_auto、get_all_conversations コマンド追加
+    - SQLite データベースでの会話履歴テーブル設計と実装
+    - 会話メタデータ（タイトル、作成日時、メッセージ数）の管理
+    - 会話履歴の効率的な検索とページネーション機能
+    - _Requirements: 11.1, 14.1, 14.2_
+
+  - [ ] 18.2 フロントエンドの履歴表示機能実装
+    - conversation-list.tsx での会話一覧表示コンポーネント作成
+    - conversation-stats.tsx での会話統計表示機能
+    - chat-store.ts での履歴管理状態の実装
+    - 会話選択時の履歴復元機能とメッセージ表示
+    - _Requirements: 11.2, 11.3_
+
+- [ ] 19. 多言語対応機能の実装
+
+  - [ ] 19.1 国際化システムの構築
+
+    - next-intl ライブラリの package.json への追加とセットアップ
+    - locales/ ディレクトリでの翻訳ファイル作成（en.json、ja.json）
+    - middleware.ts での言語検出とルーティング設定
+    - use-i18n.ts カスタムフックでの翻訳機能実装
+    - _Requirements: 12.1, 12.3_
+
+  - [ ] 19.2 言語設定の永続化と UI 実装
+    - commands/settings.rs での言語設定保存コマンド実装
+    - language-settings.tsx での言語選択 UI コンポーネント作成
+    - システム言語の自動検出機能（navigator.language 使用）
+    - 言語変更時の即座反映機能とアプリケーション再描画
+    - _Requirements: 12.2_
+
+- [ ] 20. 設定画面のバグ修正
+
+  - [ ] 20.1 テーマ設定エラーの修正
+
+    - use-theme.ts での安全なテーマ処理実装（型ガード追加）
+    - use-macos-integration.ts の isDarkTheme 関数修正（オブジェクト型チェック）
+    - appearance-settings.tsx でのテーマ設定エラーハンドリング強化
+    - ThemeSettings 型定義の厳密化と検証機能追加
+    - _Requirements: 13.1, 13.2_
+
+  - [ ] 20.2 エラーログ機能の修正
+    - commands/error_logging.rs での ErrorLogEntry 構造体修正
+    - error-handler.ts でのエラーログ送信時の型安全性確保
+    - tauri-env.ts での safeInvoke 関数のエラーハンドリング改善
+    - エラーログの構造化と必須フィールドの適切な設定
+    - _Requirements: 13.3_
+
+- [ ] 21. 自動保存設定の削除と改善
+
+  - [ ] 21.1 自動保存設定 UI の削除
+
+    - general-settings.tsx から自動保存関連の設定項目削除
+    - settings-store.ts での自動保存設定の除去
+    - AutoSaveSettings 型定義の簡素化（enabled フラグ削除）
+    - 設定画面の UI レイアウト調整とクリーンアップ
+    - _Requirements: 14.3_
+
+  - [ ] 21.2 自動保存機能の最適化
+    - use-chat.ts での送信時・受信時の即座保存実装
+    - chat-store.ts の saveMessageAuto 関数の最適化
+    - バッチ保存機能による DB アクセス効率化
+    - 保存エラー時のリトライ機能とエラー通知実装
+    - _Requirements: 14.1, 14.2_

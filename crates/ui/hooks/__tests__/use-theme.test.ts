@@ -4,7 +4,22 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 // jsdom doesn't implement classList.toggle with second argument in older envs consistently
 // but our jest-environment-jsdom supports it; ensure documentElement exists
 
-import { invoke } from '@tauri-apps/api/core';
+jest.mock('@/lib/tauri-env', () => {
+  const actual = jest.requireActual('@/lib/tauri-env');
+  return {
+    __esModule: true,
+    ...actual,
+    safeInvoke: jest.fn().mockResolvedValue(undefined),
+  };
+});
+jest.mock('../use-macos-integration', () => ({
+  __esModule: true,
+  useMacOSIntegration: () => ({
+    getSystemTheme: jest.fn().mockResolvedValue({ Light: null }),
+  }),
+  isDarkTheme: (t: any) => 'Dark' in t,
+}))
+import * as tauriEnv from '@/lib/tauri-env';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { useTheme } = require('../use-theme');
@@ -15,12 +30,15 @@ const { DEFAULT_SETTINGS } = require('@/types/settings');
 
 describe('useTheme', () => {
   const originalMatchMedia = window.matchMedia;
-  const mockInvoke = invoke as unknown as jest.Mock;
+  let mockSafeInvoke: jest.Mock;
 
   beforeEach(() => {
     jest.clearAllMocks();
     // reset settings store
     useSettingsStore.setState({ settings: DEFAULT_SETTINGS, isLoading: false, error: null });
+    const mocked = jest.requireMock('@/lib/tauri-env') as { safeInvoke: jest.Mock };
+    mockSafeInvoke = mocked.safeInvoke;
+    mockSafeInvoke.mockResolvedValue(undefined);
     // system prefers light by default in setup
     window.matchMedia = jest.fn().mockImplementation((q: string) => ({
       matches: false,
@@ -51,7 +69,7 @@ describe('useTheme', () => {
       await result.current.setTheme('dark');
     });
     await waitFor(() => expect(document.documentElement.classList.contains('dark')).toBe(true));
-    expect(mockInvoke).toHaveBeenCalledWith('apply_theme', { theme: 'dark' });
+    expect(mockSafeInvoke).toHaveBeenCalledWith('apply_theme', { theme: 'dark' });
   });
 
   test('When theme is changed to Light, dark class is removed', async () => {

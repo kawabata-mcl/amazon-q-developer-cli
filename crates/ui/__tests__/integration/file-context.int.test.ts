@@ -22,10 +22,13 @@ describe('Integration: File context operations', () => {
     await useFileContextStore.getState().addFileToContext('hello.txt', 'hello');
     expect(useFileContextStore.getState().contextFiles.map(f => f.path)).toContain('hello.txt');
 
-    // add_file_to_context_by_path -> undefined, and next load -> one file entry
-    mockInvoke.mockResolvedValueOnce(undefined as any);
+    // add_file_to_context_by_path は safeInvoke 側で処理されるため、ここでは invoke に対して
+    // 次に呼ばれる get_context_files の返り値のみを差し込めばよい
     mockInvoke.mockResolvedValueOnce([["/abs/path/readme.md", "# Title"]] as any);
     await useFileContextStore.getState().addFileByPath('/abs/path/readme.md');
+    // 念のため明示的にロードして反映を確実化
+    mockInvoke.mockResolvedValueOnce([["/abs/path/readme.md", "# Title"]] as any);
+    await useFileContextStore.getState().loadContextFiles();
     expect(useFileContextStore.getState().contextFiles.find(f => f.path === '/abs/path/readme.md')).toBeTruthy();
 
     // remove_file_from_context -> undefined

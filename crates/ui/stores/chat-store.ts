@@ -270,7 +270,7 @@ export const useChatStore = create<ChatState>()(
                         get().addMessageToConversation(conv.id, assistantMessage);
                       }
                     }
-                    return;
+                    // Do not early-return; allow completion handling below to run
                   }
 
                   // Accumulate content
@@ -392,7 +392,7 @@ export const useChatStore = create<ChatState>()(
                           get().addMessageToConversation(conv.id, assistantMessage);
                         }
                       }
-                      return;
+                      // Do not return; allow completion check below
                     }
                     // Stop showing thinking indicator when first chunk arrives
                     if (!receivedAnyChunk) {

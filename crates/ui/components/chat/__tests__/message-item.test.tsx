@@ -36,7 +36,7 @@ describe('MessageItem', () => {
 
     render(<MessageItem message={streamingAssistantMessage} />);
 
-    expect(screen.getByText('Receiving...')).toBeTruthy();
+    expect(screen.getByText('Thinking...')).toBeTruthy();
   });
 });
 

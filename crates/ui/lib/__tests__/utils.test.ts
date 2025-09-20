@@ -2,6 +2,9 @@ import { describe, test, expect } from '@jest/globals';
 import { cn, formatFileSize, formatDate, truncateText, debounce, throttle } from '../utils';
 
 describe('utils', () => {
+  beforeEach(() => {
+    jest.useRealTimers();
+  });
   describe('cn (className utility)', () => {
     test('merges class names correctly', () => {
       expect(cn('class1', 'class2')).toBe('class1 class2');
@@ -124,7 +127,11 @@ describe('utils', () => {
   });
 
   describe('debounce', () => {
-    test('delays function execution', (done) => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    test('delays function execution', () => {
       let callCount = 0;
       const fn = () => { callCount++; };
       const debouncedFn = debounce(fn, 100);
@@ -134,39 +141,34 @@ describe('utils', () => {
       debouncedFn();
 
       expect(callCount).toBe(0);
-
-      setTimeout(() => {
-        expect(callCount).toBe(1);
-        done();
-      }, 150);
+      jest.advanceTimersByTime(150);
+      expect(callCount).toBe(1);
     });
 
-    test('cancels previous calls', (done) => {
+    test('cancels previous calls', () => {
       let callCount = 0;
       const fn = () => { callCount++; };
       const debouncedFn = debounce(fn, 100);
 
       debouncedFn();
-      setTimeout(() => debouncedFn(), 50);
-      setTimeout(() => debouncedFn(), 75);
+      jest.advanceTimersByTime(50);
+      debouncedFn();
+      jest.advanceTimersByTime(75);
+      debouncedFn();
 
-      setTimeout(() => {
-        expect(callCount).toBe(1);
-        done();
-      }, 200);
+      jest.advanceTimersByTime(200);
+      expect(callCount).toBe(1);
     });
 
-    test('passes arguments correctly', (done) => {
+    test('passes arguments correctly', () => {
       let receivedArgs: any[] = [];
       const fn = (...args: any[]) => { receivedArgs = args; };
       const debouncedFn = debounce(fn, 50);
 
       debouncedFn('arg1', 'arg2', 123);
+      jest.advanceTimersByTime(100);
 
-      setTimeout(() => {
-        expect(receivedArgs).toEqual(['arg1', 'arg2', 123]);
-        done();
-      }, 100);
+      expect(receivedArgs).toEqual(['arg1', 'arg2', 123]);
     });
   });
 
