@@ -1,5 +1,6 @@
 import { describe, test, expect, jest, beforeEach } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
+import { TimeoutError, NetworkError } from '@/types/common';
 
 // Mock the chat store BEFORE importing the hook under test
 jest.mock('@/stores/chat-store', () => ({
@@ -8,14 +9,13 @@ jest.mock('@/stores/chat-store', () => ({
 }));
 
 const chatStore = jest.requireMock('@/stores/chat-store') as { useChatStore: jest.Mock };
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { useChat } = require('../use-chat');
 
 describe('useChat', () => {
-  const mockSendMessage = jest.fn();
-  const mockStartNewConversation = jest.fn();
-  const mockLoadConversation = jest.fn();
-  const mockRefreshHistory = jest.fn();
+  const mockSendMessage = jest.fn(async (_msg: string) => {});
+  const mockStartNewConversation = jest.fn(async () => '');
+  const mockLoadConversation = jest.fn(async (_id: string) => {});
+  const mockRefreshHistory = jest.fn(async () => {});
   const mockSetCurrentConversation = jest.fn();
   const mockClearError = jest.fn();
 
@@ -170,5 +170,73 @@ describe('useChat', () => {
 
     expect(mockStartNewConversation).toHaveBeenCalled();
     expect(conversationId).toBe('new-conv-id');
+  });
+
+  test('handles timeout by aborting and exposing TimeoutError with sendError set', async () => {
+    jest.useFakeTimers();
+
+    // sendMessage rejects after a short delay to allow the 30s timeout to fire first
+    mockSendMessage.mockImplementation((() => new Promise((_, reject) => setTimeout(() => reject(new Error('request aborted')), 1))) as any);
+
+    const { result } = renderHook(() => useChat());
+
+    let caught: unknown;
+    await act(async () => {
+      const p = result.current.sendMessage('Hello');
+      jest.advanceTimersByTime(30050);
+      try {
+        await p;
+      } catch (e) {
+        caught = e;
+      }
+    });
+
+    expect(caught).toBeInstanceOf(TimeoutError);
+    expect(result.current.sendError).toBe('Network timeout - please try again');
+
+    jest.useRealTimers();
+  });
+
+  test('maps network errors to NetworkError and sets friendly message', async () => {
+    mockSendMessage.mockRejectedValue(new Error('network unreachable'));
+
+    const { result } = renderHook(() => useChat());
+
+    let caught: unknown;
+    await act(async () => {
+      try {
+        await result.current.sendMessage('Ping');
+      } catch (e) {
+        caught = e;
+      }
+    });
+
+    expect(caught).toBeInstanceOf(NetworkError);
+    expect(result.current.sendError).toBe('Network connection failed. Please check your internet connection.');
+  });
+
+  test('cancelSend aborts current operation and sets cancellation error', async () => {
+    // Long-running promise to simulate in-flight send
+    let rejectFn: ((e: unknown) => void) | undefined;
+    mockSendMessage.mockImplementation((() => new Promise((_, reject) => { rejectFn = reject; })) as any);
+
+    const { result } = renderHook(() => useChat());
+
+    await act(async () => {
+      // Fire and forget; do not await to allow cancel before rejection
+      void result.current.sendMessage('Long task');
+    });
+
+    await act(async () => {
+      result.current.cancelSend();
+    });
+
+    expect(result.current.isSending).toBe(false);
+    expect(result.current.sendError).toBe('Send operation cancelled');
+
+    // Clean up the pending promise to avoid unhandled rejection warnings
+    await act(async () => {
+      (rejectFn as unknown as (e: unknown) => void)?.(new Error('cancelled'));
+    });
   });
 });

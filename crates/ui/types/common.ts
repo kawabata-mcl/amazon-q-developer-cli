@@ -73,3 +73,24 @@ export interface ContextFile {
   size: number;
   addedAt: Date;
 }
+
+// Error types for network handling
+export class TimeoutError extends Error {
+  constructor(message: string = 'Operation timed out') {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
+
+export class NetworkError extends Error {
+  constructor(message: string = 'Network error occurred') {
+    super(message);
+    this.name = 'NetworkError';
+  }
+}
+
+export interface RetryableError {
+  canRetry: boolean;
+  retryCount?: number;
+  maxRetries?: number;
+}

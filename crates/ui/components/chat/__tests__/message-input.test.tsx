@@ -99,6 +99,84 @@ describe('MessageInput', () => {
     expect(mockOnSendMessage).not.toHaveBeenCalled();
   });
 
+  test('shows error UI and allows retry and dismiss', async () => {
+    const user = userEvent.setup();
+
+    mockOnSendMessage.mockRejectedValueOnce(new Error('send failed'));
+
+    const onClear = jest.fn();
+    render(
+      <MessageInput 
+        onSendMessage={mockOnSendMessage} 
+        sendError={'Failed to send message'}
+        onClearError={onClear}
+      />
+    );
+
+    const input = screen.getByTestId('message-input');
+    await act(async () => {
+      fireEvent.change(input, { target: { value: 'Text' } });
+    });
+
+    await act(async () => {
+      await user.click(screen.getByTestId('send-button'));
+    });
+
+    expect(screen.getByText('Retry')).toBeTruthy();
+    expect(screen.getByText('Dismiss')).toBeTruthy();
+
+    await act(async () => {
+      await user.click(screen.getByText('Dismiss'));
+    });
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  test('shows cancel and spinner while sending', () => {
+    render(
+      <MessageInput 
+        onSendMessage={mockOnSendMessage}
+        isSending={true}
+        onCancelSend={jest.fn()}
+      />
+    );
+
+    expect(screen.getByTestId('cancel-button')).toBeTruthy();
+    expect(screen.getByTestId('sending-button')).toBeTruthy();
+  });
+
+  test('attaches files and includes in composed message', async () => {
+    const onSend = jest.fn().mockResolvedValue(undefined);
+    render(<MessageInput onSendMessage={onSend} />);
+
+    const file = new File(['hello'], 'note.txt', { type: 'text/plain' });
+
+    const inputFile = document.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(inputFile).toBeTruthy();
+
+    // jsdom は files セッターを持たないので、DataTransfer を使ってイベントに files を載せる
+    const data = new DataTransfer();
+    data.items.add(file);
+
+    await act(async () => {
+      fireEvent.change(inputFile, { target: { files: data.files } });
+    });
+
+    // 添付ファイルの表示を待ってから送信（FileReader の onload 後に state 更新）
+    await screen.findByText('note.txt');
+
+    const ta = screen.getByTestId('message-input');
+    await act(async () => {
+      fireEvent.change(ta, { target: { value: 'Body' } });
+      fireEvent.click(screen.getByTestId('send-button'));
+    });
+
+    const sent = onSend.mock.calls[0][0] as string;
+    expect(sent).toContain('Body');
+    expect(sent).toContain('Attached files:');
+    expect(sent).toContain('note.txt');
+    expect(sent).toContain('```');
+  });
+
   test('disables input when disabled prop is true', () => {
     render(<MessageInput onSendMessage={mockOnSendMessage} disabled={true} />);
     

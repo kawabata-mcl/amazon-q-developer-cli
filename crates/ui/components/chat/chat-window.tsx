@@ -21,13 +21,17 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
     messages,
     isLoading,
     isStreaming,
+    isSending,
     error,
+    sendError,
     hasMessages,
     canRetry,
     sendMessage,
     retryMessage,
     startNewConversation,
     clearError,
+    clearSendError,
+    cancelSend,
     getErrorMessage,
   } = useChat();
 
@@ -177,6 +181,10 @@ const ChatWindowComponent = memo(function ChatWindow({ className = '' }: ChatWin
             onSendMessage={handleSendMessage}
             disabled={isLoading || isStreaming}
             isLoading={isLoading || isStreaming}
+            isSending={isSending}
+            sendError={sendError}
+            onClearError={clearSendError}
+            onCancelSend={cancelSend}
             placeholder="Enter your questions or tasks for Amazon Q Developer..."
           />
         </div>

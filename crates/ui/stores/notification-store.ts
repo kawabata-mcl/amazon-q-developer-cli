@@ -182,6 +182,52 @@ export const notificationHelpers = {
       message,
       ...options
     });
+  },
+
+  // Network-specific error notifications
+  networkTimeout: (retryFn?: () => Promise<void>, options?: Partial<Notification>) => {
+    return useNotificationStore.getState().addNotification({
+      type: 'error',
+      title: 'Network Timeout',
+      message: 'The request timed out. This might be due to a slow connection or server issues.',
+      duration: 0, // Persistent
+      actions: retryFn ? [{
+        label: 'Retry',
+        action: retryFn,
+        variant: 'primary' as const
+      }] : undefined,
+      ...options
+    });
+  },
+
+  networkError: (retryFn?: () => Promise<void>, options?: Partial<Notification>) => {
+    return useNotificationStore.getState().addNotification({
+      type: 'error',
+      title: 'Connection Failed',
+      message: 'Unable to connect to the server. Please check your internet connection.',
+      duration: 8000,
+      actions: retryFn ? [{
+        label: 'Retry',
+        action: retryFn,
+        variant: 'primary' as const
+      }] : undefined,
+      ...options
+    });
+  },
+
+  sendMessageFailed: (retryFn?: () => Promise<void>, options?: Partial<Notification>) => {
+    return useNotificationStore.getState().addNotification({
+      type: 'error',
+      title: 'Message Send Failed',
+      message: 'Your message could not be sent. You can try sending it again.',
+      duration: 0, // Persistent so user can retry
+      actions: retryFn ? [{
+        label: 'Retry Message',
+        action: retryFn,
+        variant: 'primary' as const
+      }] : undefined,
+      ...options
+    });
   }
 };
 

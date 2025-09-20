@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Send, Paperclip, X } from 'lucide-react';
+import { Send, Paperclip, X, AlertCircle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface MessageInputProps {
   onSendMessage: (message: string) => Promise<void>;
   disabled?: boolean;
   isLoading?: boolean;
+  isSending?: boolean;
+  sendError?: string | null;
+  onClearError?: () => void;
+  onCancelSend?: () => void;
   placeholder?: string;
   className?: string;
 }
@@ -22,6 +26,10 @@ export function MessageInput({
   onSendMessage, 
   disabled = false,
   isLoading = false,
+  isSending = false,
+  sendError = null,
+  onClearError,
+  onCancelSend,
   placeholder = "Type your message...",
   className = '' 
 }: MessageInputProps) {
@@ -53,12 +61,17 @@ export function MessageInput({
   };
 
   const handleSend = async () => {
-    if (!message.trim() || disabled || isLoading) return;
+    if (!message.trim() || disabled || isLoading || isSending) return;
 
     const messageToSend = message.trim();
     const filesToSend = [...attachedFiles];
 
     try {
+      // Clear any previous errors
+      if (onClearError) {
+        onClearError();
+      }
+
       // Clear input immediately for better UX
       setMessage('');
       setAttachedFiles([]);
@@ -87,6 +100,18 @@ export function MessageInput({
       // Restore message and files on error
       setMessage(messageToSend);
       setAttachedFiles(filesToSend);
+    }
+  };
+
+  const handleRetry = () => {
+    if (message.trim()) {
+      handleSend();
+    }
+  };
+
+  const handleCancel = () => {
+    if (onCancelSend) {
+      onCancelSend();
     }
   };
 
@@ -163,9 +188,43 @@ export function MessageInput({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const isInputDisabled = disabled || isLoading || isSending;
+  const showSendingState = isSending;
+  const showErrorState = sendError && !isSending;
+
   return (
     <div className={`bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4 ${className}`}>
       <div className="max-w-4xl mx-auto">
+        {/* Error Display */}
+        {showErrorState && (
+          <div className="mb-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-start space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm text-red-700 dark:text-red-300">{sendError}</p>
+                <div className="mt-2 flex space-x-2">
+                  <Button
+                    onClick={handleRetry}
+                    size="sm"
+                    variant="outline"
+                    className="text-red-700 border-red-300 hover:bg-red-50 dark:text-red-300 dark:border-red-700 dark:hover:bg-red-900/30"
+                  >
+                    <RotateCcw className="w-3 h-3 mr-1" />
+                    Retry
+                  </Button>
+                  <Button
+                    onClick={onClearError}
+                    size="sm"
+                    variant="ghost"
+                    className="text-red-700 hover:bg-red-50 dark:text-red-300 dark:hover:bg-red-900/30"
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         {/* Attached Files Display */}
         {attachedFiles.length > 0 && (
           <div className="mb-3 space-y-2">
@@ -213,8 +272,14 @@ export function MessageInput({
               value={message}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              placeholder={isLoading ? "Sending message..." : placeholder}
-              disabled={disabled || isLoading}
+              placeholder={
+                showSendingState 
+                  ? "Sending message..." 
+                  : isLoading 
+                    ? "Loading..." 
+                    : placeholder
+              }
+              disabled={isInputDisabled}
               className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 min-h-[48px] max-h-[200px] disabled:opacity-50"
               rows={1}
               data-testid="message-input"
@@ -225,26 +290,46 @@ export function MessageInput({
             {/* File attachment button */}
             <button
               onClick={() => fileInputRef.current?.click()}
-              disabled={disabled || isLoading}
+              disabled={isInputDisabled}
               className="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
               title="Attach file"
             >
               <Paperclip className="w-5 h-5" />
             </button>
 
-            {/* Send button */}
-            <Button
-              onClick={handleSend}
-              disabled={disabled || isLoading || !message.trim()}
-              size="sm"
-              data-testid="send-button"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Send className="w-4 h-4" />
-              )}
-            </Button>
+            {/* Send/Cancel button */}
+            {showSendingState ? (
+              <div className="flex space-x-1">
+                <Button
+                  onClick={handleCancel}
+                  size="sm"
+                  variant="outline"
+                  data-testid="cancel-button"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled
+                  size="sm"
+                  data-testid="sending-button"
+                >
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={handleSend}
+                disabled={isInputDisabled || !message.trim()}
+                size="sm"
+                data-testid="send-button"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+              </Button>
+            )}
           </div>
         </div>
 

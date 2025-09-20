@@ -195,6 +195,35 @@ if (!g.ResizeObserver) {
   g.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver
 }
 
+// Polyfill DataTransfer for file input change events in jsdom
+const gg = globalThis as unknown as { DataTransfer?: typeof DataTransfer }
+if (!gg.DataTransfer) {
+  class DataTransferPolyfill {
+    files: File[]
+    items: { add: (file: File) => void; clear: () => void; remove: (index: number) => void; length: number }
+    constructor() {
+      this.files = []
+      const self = this
+      this.items = {
+        add(file: File) {
+          self.files.push(file)
+          this.length = self.files.length
+        },
+        clear() {
+          self.files = []
+          this.length = 0
+        },
+        remove(index: number) {
+          self.files.splice(index, 1)
+          this.length = self.files.length
+        },
+        length: 0,
+      }
+    }
+  }
+  ;(globalThis as unknown as { DataTransfer: typeof DataTransferPolyfill }).DataTransfer = DataTransferPolyfill
+}
+
 // Mock react-markdown and remark-gfm to avoid ESM transform issues in Jest
 import React from 'react'
 

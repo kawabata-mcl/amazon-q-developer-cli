@@ -1,13 +1,20 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useRef } from 'react';
 import { useChatStore } from '@/stores/chat-store';
 import { useStableCallback, useDebouncedCallback } from '@/lib/optimization-utils';
+import { useNotificationActions, notificationHelpers } from '@/stores/notification-store';
+import { TimeoutError, NetworkError } from '@/types/common';
 import type { ChatError, ConversationStats, ChatConversation } from '@/types/chat';
 
 /**
  * Custom hook for chat functionality with optimized selectors
- * Provides convenient methods for chat operations
+ * Provides convenient methods for chat operations with enhanced error handling
  */
 export function useChat() {
+  const [isSending, setIsSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const abortedByTimeoutRef = useRef<boolean>(false);
+  const { error: notificationError, success: notificationSuccess } = useNotificationActions();
   // NOTE:
   // We intentionally use a single call to the zustand hook instead of a custom selector
   // because unit tests mock the store with a plain function that returns a state object
@@ -59,19 +66,87 @@ export function useChat() {
     messages?: Array<any>;
   };
 
-  // Optimized message sending with debouncing to prevent rapid submissions
+  // Enhanced message sending with timeout control and error handling
   const handleSendMessage = useStableCallback(async (message: string) => {
     if (!message.trim()) {
       throw new Error('Message cannot be empty');
     }
 
-    try {
-      await sendMessage(message);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      throw error;
+    if (isSending) {
+      throw new Error('Another message is already being sent');
     }
-  }, [sendMessage]);
+
+    // Cancel any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    abortedByTimeoutRef.current = false;
+
+    setIsSending(true);
+    setSendError(null);
+
+    try {
+      // Set up timeout
+      const timeoutId = setTimeout(() => {
+        abortedByTimeoutRef.current = true;
+        controller.abort();
+      }, 30000); // 30 second timeout
+
+      try {
+        await sendMessage(message);
+        clearTimeout(timeoutId);
+        
+        // Success notification
+        notificationSuccess(
+          'Message sent',
+          'Your message has been sent successfully'
+        );
+      } catch (error) {
+        clearTimeout(timeoutId);
+        
+        // Handle different error types
+        let errorMessage = 'Failed to send message';
+        let canRetry = true;
+
+        if (controller.signal.aborted) {
+          if (abortedByTimeoutRef.current) {
+            errorMessage = 'Network timeout - please try again';
+            setSendError(errorMessage);
+            notificationHelpers.networkTimeout(() => handleSendMessage(message));
+            throw new TimeoutError(errorMessage);
+          } else {
+            // Manual cancellation: set error and do not throw
+            setSendError('Send operation cancelled');
+            return;
+          }
+        } else if (error instanceof Error) {
+          if (error.message.includes('network') || error.message.includes('fetch')) {
+            errorMessage = 'Network connection failed. Please check your internet connection.';
+            setSendError(errorMessage);
+            notificationHelpers.networkError(() => handleSendMessage(message));
+            throw new NetworkError(errorMessage);
+          } else {
+            errorMessage = error.message || 'An unexpected error occurred';
+            setSendError(errorMessage);
+            notificationHelpers.sendMessageFailed(
+              canRetry ? () => handleSendMessage(message) : undefined
+            );
+          }
+        }
+        // If we get here and haven't thrown, rethrow original error to preserve behavior
+        if (error) {
+          throw error;
+        }
+      }
+    } finally {
+      setIsSending(false);
+      abortControllerRef.current = null;
+    }
+  }, [sendMessage, isSending, notificationError, notificationSuccess]);
 
   // Optimized handlers with stable callbacks
   const handleRetryMessage = useStableCallback(async (messageId: string) => {
@@ -156,8 +231,22 @@ export function useChat() {
     }
   }, [getConversationStats]);
 
-  // Memoized computed values to prevent unnecessary recalculations
-  const canSendMessage = useMemo(() => !isLoading && !isStreaming, [isLoading, isStreaming]);
+  // Enhanced send state management
+  const canSendMessage = useMemo(() => !isLoading && !isStreaming && !isSending, [isLoading, isStreaming, isSending]);
+  
+  // Clear send error function
+  const clearSendError = useCallback(() => {
+    setSendError(null);
+  }, []);
+  
+  // Cancel current send operation
+  const cancelSend = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsSending(false);
+      setSendError('Send operation cancelled');
+    }
+  }, []);
   
   // Prefer store-provided messages (tests mock this),
   // otherwise fall back to the computed selector if available
@@ -208,7 +297,9 @@ export function useChat() {
     isLoading,
     isStreaming,
     isWaitingForResponse,
+    isSending,
     error,
+    sendError,
     canSendMessage,
     hasMessages,
     canRetry,
@@ -221,6 +312,8 @@ export function useChat() {
     refreshHistory: handleRefreshHistory,
     setCurrentConversation,
     clearError,
+    clearSendError,
+    cancelSend,
     
     // Conversation management
     deleteConversation: handleDeleteConversation,
